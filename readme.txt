@@ -1,7 +1,9 @@
 ﻿ECAD PHP fileviewer v0.1.08 Handbook
 (PLease delete if not needet anymore)
 
+
 Administrator: admin, admin
+
 
 
 First Steps:
@@ -10,7 +12,7 @@ open it in your browser.
 The system will than install all needed configurations, and a standard user.
 
 
-The Folders and document a user can see are under //ECAD PHP fileviewer X data/user_name/data
+The Folders and document a user can see are under /ECAD PHP fileviewer X data/user_name/data
 Upload your folders there so the user can access and download them
 
 The folder ECAD PHP fileviewer X data will be created, in it you can find the acces restiction file (do not touch) and the the standard user user0 with the password admin.

@@ -37,13 +37,13 @@ $show_ecad_php_version_on_title = true;
         if($_GET["action"] == "logout"){
             //from server
             $str3706849=file_get_contents($datarootpath."/".$c_username.'/login.php');
-            
+
             //replace something in the file string - this is a VERY simple example
             $str3706849=str_replace('<?php $acceptableuserLoginCockies = $acceptableuserLoginCockies."'.$_COOKIE['ECAD_PHP_fileviewer_login'].'-"; ?>', '',$str3706849);
-            
+
             //write the entire string
             file_put_contents($datarootpath."/".$c_username.'/login.php', $str3706849);
-            
+
             //from client
             setcookie('ECAD_PHP_fileviewer_login',"null");
             $authentificated = false;
