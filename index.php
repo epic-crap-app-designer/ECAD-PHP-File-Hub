@@ -3,7 +3,7 @@
     $debug = false;
     installifneeded();
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.08";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.09";
 $show_ecad_php_version_on_title = true;
 
     //load config
@@ -23,7 +23,7 @@ $show_ecad_php_version_on_title = true;
         if(file_exists($datarootpath."/".$c_username)){
             include $datarootpath."/".$c_username."/userconfig.php";
             include $datarootpath."/".$c_username.'/login.php';
-            //if ((in_array($_COOKIE['ECAD_PHP_fileviewer_login'], $acceptableuserLoginCockies))){//$userpasswordHash == $cookie_hash)) {
+
             if (strstr($acceptableuserLoginCockies, "-".$_COOKIE['ECAD_PHP_fileviewer_login']."-")){
                 $user = $c_username;
                 $userpath="/".$user;
@@ -35,16 +35,16 @@ $show_ecad_php_version_on_title = true;
         }
         //logout (server)
         if($_GET["action"] == "logout"){
-            //from server
+            //delete session from server
             $str3706849=file_get_contents($datarootpath."/".$c_username.'/login.php');
+            
 
-            //replace something in the file string - this is a VERY simple example
             $str3706849=str_replace('<?php $acceptableuserLoginCockies = $acceptableuserLoginCockies."'.$_COOKIE['ECAD_PHP_fileviewer_login'].'-"; ?>', '',$str3706849);
+            
 
-            //write the entire string
             file_put_contents($datarootpath."/".$c_username.'/login.php', $str3706849);
-
-            //from client
+            
+            //delete cockie from client
             setcookie('ECAD_PHP_fileviewer_login',"null");
             $authentificated = false;
             header("Refresh:0; url=index.php");
@@ -63,6 +63,7 @@ $show_ecad_php_version_on_title = true;
     //-------------------
     if ($authentificated) {
         if($userIsAdmin||$user=="admin"){
+            //admin user Interface
             $show_user_interface = true;
             echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">';
             echo '<html xmlns="http://www.w3.org/1999/xhtml">';
@@ -111,6 +112,17 @@ $show_ecad_php_version_on_title = true;
                     }
                 }
             }
+            if ( isset( $_POST['logout_user'] ) ) {
+                //close all sessions of the user
+                if($_POST['user_to_delete'] != ""){
+                    $ecad_php_user_config_file = fopen($datarootpath.'/'.$_POST['user_to_delete'].'/login.php', "w");
+                    $user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
+                    fwrite($ecad_php_user_config_file, $user_config_file_Standard);
+                    fclose($ecad_php_user_config_file);
+                    //echo "user logged out";
+                    //create_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word);
+                }
+            }
             //--------------------
             //output
             if($show_user_interface){
@@ -125,9 +137,9 @@ $show_ecad_php_version_on_title = true;
                     if (in_array ( $file , $nichtgelisteteDatein )){
                     }else{
                         if ($file == "admin"){
-                        echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"></form>';
+                        echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"><span title="all sessions of this user will be closed"><input name="logout_user" value="logout" type="submit"></span></form>';
                         }else{
-                        echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"><input name="delete_user" value="delete" type="submit"></form>';
+                            echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"><input name="delete_user" value="delete" type="submit"><span title="all sessions of this user will be closed"><input name="logout_user" value="logout" type="submit"></span></form>';
                         }
                     }
                 }
@@ -135,13 +147,8 @@ $show_ecad_php_version_on_title = true;
             }
            //---------------------------------------------
         }else{
-
-    
-    //start ecad file view------------
-    //session_start();
+            //normal user
     //debug
-
-    
     if($debug){
         echo "</br>--------------debug------------------";
         echo "</br>";
@@ -159,21 +166,10 @@ $show_ecad_php_version_on_title = true;
         echo "</br>".getcwd();
         
         echo "</br>-------------------------------------";
-        
     }
-    
-    //needet data for components (old static variables
-
-    //$user = "user1";
-    //$userpath = "/user1";
-    //$datarootpath = "C:/ECAD PHP fileviewer X data";
-        
         //get path
         $path = $_GET["path"];
     $path = str_replace ("%20" , " " , $path);
-        //load configs
-        
-        //------------
     $fullpath = $datarootpath.$userpath."/data".$path;
     //validate path
     if (strlen($path) >0){
@@ -209,7 +205,7 @@ $show_ecad_php_version_on_title = true;
         echo "</br>-------------------------------------";
         echo "</br></br></br></br>";
     }
-    //echo getcwd();
+
     if(is_file($fullpath)){
         if($debug){
             echo "</br>--------------INFO-------------------";
@@ -218,38 +214,21 @@ $show_ecad_php_version_on_title = true;
             echo "</br>";
         }
         //do download
-        //$path = ltrim($path, '/');
-        //$path = rawurlencode($path);
+
         $filename = substr($path, strrpos($path, '/') + 1);
         
         substr($path, strrpos($path, '/') + 1);
         
         makeDownload($fullpath, filetype($fullpath),$filename);
 
-        
-        //read file for download (old downloader)
-        //$my_download_file = fopen($fullpath, "r") or die();
-        //echo fread($my_download_file,filesize($fullpath));
-        //fclose($my_download_file);
-        
-        //read file for download new with buffer
-        /*
-        $handle = fopen($fullpath, "r") or die("Couldn't get handle");
-        if ($handle) {
-            while (!feof($handle)) {
-                $buffer = fgets($handle, 4096);
-                echo $buffer;
-                // Process buffer here..
-            }
-            fclose($handle);
-        }
-         */
+        //clean the file reader
         ob_end_clean();
+        //read file for download
         readfile($fullpath);
         //---------
-        
-        
+
     }else{
+        //normal user Interface
         echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">';
         echo '<html xmlns="http://www.w3.org/1999/xhtml">';
         echo '<head>';
@@ -260,7 +239,7 @@ $show_ecad_php_version_on_title = true;
         echo $ecad_php_version.'    <a href="index.php?action=logout"> logout </a></br>';
         echo "user: ".$user."</br>";
         
-        //neues path anzeige system
+        //new path display system
 
         if ($path == '/'){
             echo "</br> path: ";
@@ -272,7 +251,7 @@ $show_ecad_php_version_on_title = true;
             $path_array = split('/',$path);
             
             echo'<a href="'.$newpath.'">root</a><a> /</a>';
-            //echo count($path_array);
+
             for ($path_part = 1; $path_part <= (count($path_array)-2); $path_part++) {
                 $newpath = $newpath.$path_array[$path_part].'/';
                 if ($path_part ==(count($path_array)-2)){
@@ -280,15 +259,12 @@ $show_ecad_php_version_on_title = true;
                 }else{
                     echo '<a> </a>'.'<a href="'.$newpath.'">'.$path_array[$path_part].'</a><a> /</a>';
                 }
-                
-                
-                //echo $path_array[$path_part]."   ";
             }
         }
         echo'</br></br>';
         
         
-        //altes path anzeige system
+        //old path display system
         //echo "</br> path: ".$path ."</br>";
         
         if(file_exists($fullpath.'/')){
@@ -304,7 +280,7 @@ $show_ecad_php_version_on_title = true;
                 
                 if (in_array ( $file , $nichtgelisteteDatein )){
                     
-                    //echo'<a href="http://www.epiccad.at/privatedownloads/'.$file.'">'.$file.'</a> </br>';
+                    //files that are not listed for users
                 }else{
                     $datein++;
                     
@@ -316,27 +292,16 @@ $show_ecad_php_version_on_title = true;
                         }else{
                         echo round((filesize($fullpath.'/'.$file)/1000.000),3)."kb   ";
                         }
-                        //echo (filesize($fullpath.'/'.$file)/1024.000)."kb   ";
-                        //echo ("datei   ");
                     }
                     else
                     {
                         echo ("Folder   ");
                     }
-                    //--
-                    //-------test
-                    
-                    //new
+                    //path system for shown files and folders
                     $newpath = substr(curPageURL(), 0, strpos(curPageURL(),basename(__FILE__))).basename(__FILE__)."?path=".$path;
 
                     echo'<a href="'.$newpath.$file.'">'.$file."       ".'</a> </br>';
-                    //old
-              //      $newpath = curPageURL();
-              //      if($newpath[strlen($newpath) - 1] != "/"){
-              //          echo'<a href="'.curPageURL().'/'.$file.'">'.$file."       ".'</a> </br>';
-              //      }else{
-              //          echo'<a href="'.curPageURL().''.$file.'">'.$file."       ".'</a> </br>';
-              //      }
+
                    
                     
                 }
@@ -346,7 +311,7 @@ $show_ecad_php_version_on_title = true;
             echo "</br>";
             if($datein == 1){
                 echo $datein." Object";
-                //echo "Keine Datein";
+                //echo "no files";
             }else{
                 echo $datein." Objects";
             }
@@ -370,17 +335,6 @@ $show_ecad_php_version_on_title = true;
             $user = $_POST['user'];
             $pass = $_POST['pass'];
             
-            //only admin login
-            /*
-            if($user == "admin"&& $pass == "admin")
-            {
-                
-                setcookie('ECAD_PHP_fileviewer_login',$user.','.md5($pass.$secret_word));
-                echo "you are loged in      please wait.......";
-                header("Refresh:0; url=index.php?path=/");
-                
-            }
-             */
             $loginaccepted = false;
             if(file_exists($datarootpath."/".$user)){
                 include $datarootpath."/".$user."/userconfig.php";
@@ -393,11 +347,8 @@ $show_ecad_php_version_on_title = true;
             {
                 $newUserCockies = $user.','.md5($pass.$secret_word.time());
                 //activate cockie
-                //$ecad_php_user_config_file = fopen($datarootpath."/".$user.'/login.php', "w");
                 $user_config_file_Standard = '<?php $acceptableuserLoginCockies = $acceptableuserLoginCockies."'.$newUserCockies.'-"; ?>';
                 file_put_contents($datarootpath."/".$user.'/login.php', $user_config_file_Standard, FILE_APPEND);
-                //fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-                //fclose($ecad_php_user_config_file);
                 
                 setcookie('ECAD_PHP_fileviewer_login',$newUserCockies);
                 //setcookie('ECAD_PHP_fileviewer_login',$user.','.md5($pass.$secret_word));
@@ -468,7 +419,6 @@ function installifneeded() {
 fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
 fclose($ecadphpconfigfile);
 //ecad php data folder
-//mkdir("ECAD PHP fileviewer X data");
 mkdir('./ECAD PHP fileviewer X data/user0/data/test', 0777, true);
 mkdir('./ECAD PHP fileviewer X data/user0/downloadpreperation', 0777, true);
 
@@ -496,7 +446,6 @@ fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 
 //configurate htaccess
-
 $ecad_php_htaccess_file = fopen('./ECAD PHP fileviewer X data/.htaccess', "w");
 $ecad_php_htaccess_file_Standard = '<Directory ./>'."\r\n".'Order deny,Allow'."\r\n".'Deny from all'."\r\n".'</Directory>';
 fwrite($ecad_php_htaccess_file, $ecad_php_htaccess_file_Standard);
@@ -535,11 +484,6 @@ function rrmdir($dir) {
                             fwrite($ecad_php_user_config_file, $user_config_file_Standard);
                             fclose($ecad_php_user_config_file);
                             
-                            
-                            
-                            
-                            
-                            
     }
 ?><?php
     function edit_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word){
@@ -554,11 +498,6 @@ $user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 
-
-
-
-
-
 }
 ?><?php
     function edit_user_keep_password($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word){
@@ -572,11 +511,6 @@ $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/'.$toCre
 $user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
-
-
-
-
-
 
 }
 ?>
