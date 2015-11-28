@@ -1,4 +1,4 @@
-﻿ECAD PHP fileviewer v0.1.09 Handbook
+ECAD PHP fileviewer v0.1.10 Handbook
 (PLease delete if not needet anymore)
 
 Administrator: admin, admin
@@ -26,10 +26,13 @@ auto logon for every visitor to a useracount, add the cockiesetter at the beginn
 
 
 Problems:
- some small bugs.
 
 
 changes:
+v0.1.10
+can upload and delete checkbox added
+is admin button removed
+
 v0.1.09
 users sessions can be closed in the administration Interface
 

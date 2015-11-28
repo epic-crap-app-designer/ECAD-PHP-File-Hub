@@ -1,9 +1,9 @@
 <?php
     
     $debug = false;
-    installifneeded();
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.09";
+    installifneeded($secret_word);
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.10";
 $show_ecad_php_version_on_title = true;
 
     //load config
@@ -86,15 +86,40 @@ $show_ecad_php_version_on_title = true;
             
             if ( isset( $_POST['create_user'] ) ) {
                 $show_user_interface = false;
-                echo'</br><form method="POST" action="">Username: <input type="text" name="username"></input><br/>Password: <input type="text" name="password"></input><br/>is admin:<input type="checkbox" name="is_admin" value="is admin"><br/><input name="create_user_submit" value="OK" type="submit"></form>';
+                echo '</br><form method="POST" action="">Username: <input type="text" name="username"></input><br/>Password: <input type="text" name="password"></input><br/>';
+                echo 'can upload:<input type="checkbox" name="can_upload" value="is admin"></br>';
+                echo 'can delete:<input type="checkbox" name="can_delete" value="is admin"></br>';
+                echo '<input name="create_user_submit" value="OK" type="submit"></form>';
             }
             if ( isset( $_POST['edit_user'] ) ) {
                 $show_user_interface = false;
-                echo'</br><form method="POST" action="">Username: <input type="text" name="username" value="'.$_POST['user_to_delete'].'" readonly></input><br/>Password: <input type="text" name="password">(left empty to keep password)</input><br/>is admin:<input type="checkbox" name="is_admin" value="is admin"><br/><input name="edit_user_submit" value="OK" type="submit"></form>';
+                //store curent user
+                $current_administrative_user = $user;
+                //load to edit user
+                include $datarootpath."/".$_POST['user_to_delete']."/userconfig.php";
+                $toeditUser_can_upload = $can_upload;
+                $toeditUser_can_delete = $can_delete;
+                //load administrator back in again
+                include $datarootpath."/".$current_administrative_user."/userconfig.php";
+                
+                echo '</br><form method="POST" action="">Username: <input type="text" name="username" value="'.$_POST['user_to_delete'].'" readonly></input><br/>Password: <input type="text" name="password">(left empty to keep password)</input><br/>';
+                
+                if ($toeditUser_can_upload){
+                    echo 'can upload:<input type="checkbox" name="can_upload" value="can_upload" checked></br>';
+                }else{
+                    echo 'can upload:<input type="checkbox" name="can_upload" value="can_upload"></br>';
+                }
+                
+                if ($toeditUser_can_delete){
+                    echo 'can delete:<input type="checkbox" name="can_delete" value="can_delete" checked></br>';
+                }else{
+                    echo 'can delete:<input type="checkbox" name="can_delete" value="can_delete"></br>';
+                }
+                echo '<input name="edit_user_submit" value="OK" type="submit"></form>';
             }
             if ( isset( $_POST['create_user_submit'] ) ) {
                 if($_POST['username'] != ""){
-                create_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word);
+                create_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"));
                 }
             }
             if ( isset( $_POST['edit_user_submit'] ) ) {
@@ -103,12 +128,14 @@ $show_ecad_php_version_on_title = true;
                     if ($_POST['password'] ==""){
                         $current_administrative_user = $user;
                         include $datarootpath."/".$_POST['username']."/userconfig.php";
-                        edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word);
+                        //edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word,$_POST['can_upload'],$_POST['can_delete']);
+                        edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"));
+                        //(isset($_POST['can_upload']) && $_POST['can_upload']  ? "1" : "0")
                         
                         include $datarootpath."/".$current_administrative_user."/userconfig.php";
                     }else{
                 
-                edit_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word);
+                edit_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"));
                     }
                 }
             }
@@ -410,12 +437,12 @@ function makeDownload($file, $type, $filename) {
 
 }
 ?><?php
-function installifneeded() {
-        $secret_word = "word";
+function installifneeded($secret_word) {
+        //$secret_word = "word";
     if(!file_exists("config.php")){
         //ecad php config file
         $ecadphpconfigfile = fopen("config.php", "w");
-        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.'/ECAD PHP fileviewer X data'."'".';'."\r\n".'$adminPassword="admin"'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'?>';
+        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.'/ECAD PHP fileviewer X data'."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'?>';
 fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
 fclose($ecadphpconfigfile);
 //ecad php data folder
@@ -424,7 +451,7 @@ mkdir('./ECAD PHP fileviewer X data/user0/downloadpreperation', 0777, true);
 
 //create user0
 $ecad_php_user_config_file = fopen('./ECAD PHP fileviewer X data/user0/userconfig.php', "w");
-$user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5("admin".$secret_word)."'".';'."\r\n".'?>';
+$user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5("admin".$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload= false;'."\r\n".'$can_delete= false;'."\r\n".'?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 //create user0 password
@@ -436,7 +463,7 @@ fclose($ecad_php_user_config_file);
 //create admin
 mkdir('./ECAD PHP fileviewer X data/admin');
 $ecad_php_user_config_file = fopen('./ECAD PHP fileviewer X data/admin/userconfig.php', "w");
-$user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5("admin".$secret_word)."'".';'."\r\n".'$userIsAdmin= true'."\r\n".'?>';
+$user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5("admin".$secret_word)."'".';'."\r\n".'$userIsAdmin= true;'."\r\n".'$can_upload= true;'."\r\n".'$can_delete= true;'."\r\n".'?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 //create admin password
@@ -469,13 +496,13 @@ function rrmdir($dir) {
     } 
 }
 ?><?php
-    function create_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word){
+    function create_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete){
                             //create user
                             mkdir($ECAD_PHP_fileviewer_X_data_folder.'/'.$toCreateUsername);
                             mkdir($ECAD_PHP_fileviewer_X_data_folder.'/'.$toCreateUsername.'/data');
                             mkdir($ECAD_PHP_fileviewer_X_data_folder.'/'.$toCreateUsername.'/downloadpreperation');
                             $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/'.$toCreateUsername.'/userconfig.php', "w");
-                            $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false'."\r\n".'?>';
+                            $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'?>';
                             fwrite($ecad_php_user_config_file, $user_config_file_Standard);
                             fclose($ecad_php_user_config_file);
                             //create user password
@@ -486,10 +513,10 @@ function rrmdir($dir) {
                             
     }
 ?><?php
-    function edit_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word){
+    function edit_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete){
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/'.$toCreateUsername.'/userconfig.php', "w");
-        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false'."\r\n".'?>';
+        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 //create user password
@@ -500,10 +527,10 @@ fclose($ecad_php_user_config_file);
 
 }
 ?><?php
-    function edit_user_keep_password($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word){
+    function edit_user_keep_password($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete){
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/'.$toCreateUsername.'/userconfig.php', "w");
-        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$toCreateUserPassword."'".';'."\r\n".'$userIsAdmin= false'."\r\n".'?>';
+        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$toCreateUserPassword."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 //create user password
