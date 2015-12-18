@@ -3,7 +3,7 @@
     $debug = false;
     $secret_word = "word";
     installifneeded($secret_word);
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.10";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.12";
 $show_ecad_php_version_on_title = true;
 
     //load config
@@ -128,10 +128,7 @@ $show_ecad_php_version_on_title = true;
                     if ($_POST['password'] ==""){
                         $current_administrative_user = $user;
                         include $datarootpath."/".$_POST['username']."/userconfig.php";
-                        //edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word,$_POST['can_upload'],$_POST['can_delete']);
                         edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"));
-                        //(isset($_POST['can_upload']) && $_POST['can_upload']  ? "1" : "0")
-                        
                         include $datarootpath."/".$current_administrative_user."/userconfig.php";
                     }else{
                 
@@ -147,7 +144,6 @@ $show_ecad_php_version_on_title = true;
                     fwrite($ecad_php_user_config_file, $user_config_file_Standard);
                     fclose($ecad_php_user_config_file);
                     //echo "user logged out";
-                    //create_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word);
                 }
             }
             //--------------------
@@ -197,6 +193,9 @@ $show_ecad_php_version_on_title = true;
         //get path
         $path = $_GET["path"];
     $path = str_replace ("%20" , " " , $path);
+            //remove escape characters
+    $path = str_replace ("..\\" , " " , $path);
+    $path = str_replace ("../" , " " , $path);
     $fullpath = $datarootpath.$userpath."/data".$path;
     //validate path
     if (strlen($path) >0){
@@ -370,7 +369,7 @@ $show_ecad_php_version_on_title = true;
                 }
             }
             
-            if($loginaccepted)
+            if($loginaccepted && $_POST['user'] != null)
             {
                 $newUserCockies = $user.','.md5($pass.$secret_word.time());
                 //activate cockie
@@ -531,11 +530,6 @@ fclose($ecad_php_user_config_file);
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/'.$toCreateUsername.'/userconfig.php', "w");
         $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$toCreateUserPassword."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'?>';
-fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-fclose($ecad_php_user_config_file);
-//create user password
-$ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/'.$toCreateUsername.'/login.php', "w");
-$user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 

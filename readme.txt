@@ -1,4 +1,4 @@
-ECAD PHP fileviewer v0.1.10 Handbook
+ECAD PHP fileviewer v0.1.12 Handbook
 (PLease delete if not needet anymore)
 
 Administrator: admin, admin
@@ -25,10 +25,14 @@ Tips and Tricks:
 auto logon for every visitor to a useracount, add the cockiesetter at the beginning of the index.php file after the „<?php“: setcookie('ECAD_PHP_fileviewer_login‘,“user0“.’,’.md5(„admin“.“word“)); 
 
 
-Problems:
-
-
 changes:
+v0.1.12
+escape characters in folder request are filtered
+users with no password no longer create errors after the logout
+
+v0.1.11
+users will no longer be logged out when edited if the password was not changed
+
 v0.1.10
 can upload and delete checkbox added
 is admin button removed
