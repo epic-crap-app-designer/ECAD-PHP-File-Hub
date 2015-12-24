@@ -1,5 +1,4 @@
-ECAD PHP fileviewer v0.1.12 Handbook
-(PLease delete if not needet anymore)
+ECAD PHP fileviewer v0.1.14 Handbook
 
 Administrator: admin, admin
 
@@ -21,11 +20,15 @@ The accesseble files of the users are under /ECAD PHP fileviewer X data/user0/da
 The passwords that are saved, are the md5 sum of the password and the secret word „word“.
 
 
-Tips and Tricks:
-auto logon for every visitor to a useracount, add the cockiesetter at the beginning of the index.php file after the „<?php“: setcookie('ECAD_PHP_fileviewer_login‘,“user0“.’,’.md5(„admin“.“word“)); 
-
-
 changes:
+v0.1.14
++ users can create folders
++ users can rename objects
+- ASCII Encoding support has errors
+
+v0.1.13
+users are now saved in the users folder
+
 v0.1.12
 escape characters in folder request are filtered
 users with no password no longer create errors after the logout
