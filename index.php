@@ -2,8 +2,8 @@
     
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.14";
-    $ecad_php_version_number = "v0.1.14";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.15b";
+    $ecad_php_version_number = "v0.1.15b";
     installifneeded($secret_word, $ecad_php_version_number);
 $show_ecad_php_version_on_title = true;
 
@@ -194,7 +194,15 @@ $show_ecad_php_version_on_title = true;
         //get path
         $path = $_GET["path"];
     $path = str_replace ("%20" , " " , $path);
+            
+            
+            
+            
+            
             //remove escape characters
+            if ($path[strlen($path) - 1] != "/"){
+                $path = $path."/";
+            }
     $path = str_replace ("..\\" , " " , $path);
     $path = str_replace ("../" , " " , $path);
     $fullpath = $datarootpath."/users/".$userpath."/data".$path;
@@ -260,7 +268,28 @@ $show_ecad_php_version_on_title = true;
         //user input
         if ( isset( $_POST['create_Folder'] ) && $can_delete ) {
             $show_user_interface = true;
-            mkdir($fullpath.'/New Folder', 0777, true);
+            $counter = 0;
+            $new_folder_created = false;
+            do{
+                if($counter  == 0){
+                    if(!file_exists($fullpath.'/New Folder') && !is_dir($fullpath.'/New Folder')) {
+                        mkdir($fullpath.'/New Folder', 0777, true);
+                        $new_folder_created = true;
+                    }else{
+                        $counter++;
+                    }
+                }else{
+                    
+                    if((!file_exists($fullpath.'/New Folder ('.$counter.')') && !is_dir($fullpath.'/New Folder ('.$counter.')'))) {
+                        mkdir($fullpath.'/New Folder ('.$counter.')', 0777, true);
+                        $new_folder_created = true;
+                    }else{
+                        $counter++;
+                    }
+                }
+            }while(!$new_folder_created);
+            
+            //mkdir($fullpath.'/New Folder', 0777, true);
             //create new folder under $fullpath
             
             echo 'Created new Folder!<br/>';
@@ -298,7 +327,7 @@ $show_ecad_php_version_on_title = true;
                     }
                 }
             }
-            if($files_to_edit_counter > -1){
+            if($files_to_edit_counter > 0){
             echo '<input name="rename_FolderOrFile_submit" value="submit" type="submit"></form>';
             }else{
                 $show_user_interface = true;
@@ -319,7 +348,11 @@ $show_ecad_php_version_on_title = true;
                     //echo $edit_file_if;
                     if(isset($_POST[('file_'.$file_in_html)]) ){
                         echo $file." changed to --> ".$_POST[('file_'.$file_in_html)]."</br>";
-                        rename (str_replace ("//" , "/" , $fullpath).''.$file, str_replace ("//" , "/" , $fullpath).$_POST[('file_'.$file_in_html)]);
+                        $new_filename = $_POST[('file_'.$file_in_html)];
+                        $new_filename = str_replace ("..\\" , " " , $new_filename);
+                        $new_filename = str_replace ("../" , " " , $new_filename);
+                        $new_filename = trim ($new_filename ," \t\n\r\0\x0B" );
+                        rename (str_replace ("//" , "/" , $fullpath).''.$file, str_replace ("//" , "/" , $fullpath).$new_filename);
                         //rename $file with $_POST[('file_'.str_replace (" " , "%20" , $file))]
                     }
                 }
@@ -372,7 +405,7 @@ $show_ecad_php_version_on_title = true;
                 $nichtgelisteteDatein = array("index.php", ".htaccess", ".", "..");
                 
                 $files = scandir($fullpath.'/');
-                sort($files); // this does the sorting
+                sort($files, SORT_NATURAL); // this does the sorting
                 
                 $datein = 0;
                 echo "\r\n".'<form method="POST" action="">';
