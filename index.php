@@ -2,7 +2,7 @@
     
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.15b";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.15c";
     $ecad_php_version_number = "v0.1.15b";
     installifneeded($secret_word, $ecad_php_version_number);
 $show_ecad_php_version_on_title = true;
@@ -200,11 +200,6 @@ $show_ecad_php_version_on_title = true;
             
             
             //remove escape characters
-            if ($path[strlen($path) - 1] != "/"){
-                $path = $path."/";
-            }
-    $path = str_replace ("..\\" , " " , $path);
-    $path = str_replace ("../" , " " , $path);
     $fullpath = $datarootpath."/users/".$userpath."/data".$path;
     //validate path
     if (strlen($path) >0){
@@ -229,6 +224,7 @@ $show_ecad_php_version_on_title = true;
         }else{
             $path = "/";
         }
+        $path = str_replace (".." , "" , $path);
         $fullpath = $datarootpath."/users/".$userpath."/data".$path;
     }
     //redo fullpath for file reading

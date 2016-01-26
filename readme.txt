@@ -1,4 +1,4 @@
-ECAD PHP fileviewer v0.1.15b Handbook
+ECAD PHP fileviewer v0.1.15c Handbook
 
 Administrator: admin, admin
 
@@ -21,6 +21,9 @@ The passwords that are saved, are the md5 sum of the password and the secret wor
 
 
 changes:
+v0.1.15c
+fixed downloads error
+
 v0.1.15b
 escape characters in file renaming are filtered
 
