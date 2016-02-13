@@ -2,8 +2,8 @@
     
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.15c";
-    $ecad_php_version_number = "v0.1.15b";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.16";
+    $ecad_php_version_number = "v0.1.16";
     installifneeded($secret_word, $ecad_php_version_number);
 $show_ecad_php_version_on_title = true;
 
@@ -32,6 +32,7 @@ $show_ecad_php_version_on_title = true;
                 $authentificated = true;
             } else {
                 $authentificated = false;
+                ecad_php_log($datarootpath,"WARNING","no valid cockie");
             }
         }
         //logout (server)
@@ -56,6 +57,7 @@ $show_ecad_php_version_on_title = true;
     }
     //remove login cockie
     if($_GET["action"] == "logout"){
+        ecad_php_log($datarootpath,"INFO","logout");
         //from client
         setcookie('ECAD_PHP_fileviewer_login',"null");
         $authentificated = false;
@@ -140,6 +142,7 @@ $show_ecad_php_version_on_title = true;
             if ( isset( $_POST['logout_user'] ) ) {
                 //close all sessions of the user
                 if($_POST['user_to_delete'] != ""){
+                    ecad_php_log($datarootpath,"INFO"," logged out by admin".'['.$_POST['user_to_delete'].']');
                     $ecad_php_user_config_file = fopen($datarootpath.'/users/'.$_POST['user_to_delete'].'/login.php', "w");
                     $user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
                     fwrite($ecad_php_user_config_file, $user_config_file_Standard);
@@ -245,7 +248,8 @@ $show_ecad_php_version_on_title = true;
             echo "</br>";
         }
         //do download
-
+        ecad_php_log($datarootpath,"INFO","file download ".'['.$path.']');
+        
         $filename = substr($path, strrpos($path, '/') + 1);
         
         substr($path, strrpos($path, '/') + 1);
@@ -357,6 +361,7 @@ $show_ecad_php_version_on_title = true;
             
         }
         if($show_user_interface){
+            
             //normal user Interface
             echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">';
             echo '<html xmlns="http://www.w3.org/1999/xhtml">';
@@ -397,6 +402,7 @@ $show_ecad_php_version_on_title = true;
             //echo "</br> path: ".$path ."</br>";
             
             if(file_exists($fullpath.'/')){
+                ecad_php_log($datarootpath,"INFO","folder request ".'['.$path.']');
                 
                 $nichtgelisteteDatein = array("index.php", ".htaccess", ".", "..");
                 
@@ -450,7 +456,7 @@ $show_ecad_php_version_on_title = true;
                 
                 
             }else{
-                
+                ecad_php_log($datarootpath,"INFO","folder / file not found ".'['.$path.']');
                 echo "</br> Folder not found";
                 
             }
@@ -487,6 +493,7 @@ $show_ecad_php_version_on_title = true;
                 //setcookie('ECAD_PHP_fileviewer_login',$user.','.md5($pass.$secret_word));
                 echo "you are logged in      please wait.......";
                 header("Refresh:0; url=index.php?path=/");
+                ecad_php_log($datarootpath,"INFO","user logged in ".'[new cockie: '.$newUserCockies.']');
 
             }
             else
@@ -513,6 +520,7 @@ Password: <input type="password" name="pass"></input><br/>
 <?php
     }
     if(isset($_POST['user'])){
+        ecad_php_log($datarootpath,"WARNING","unsucessful login for ".'['.$_POST['user'].']');
        echo '<div style="text-align:center; margin= 0 auto;"><a>username or password incorect</a></div>';
        }
     echo '</body></html>';
@@ -533,6 +541,7 @@ function curPageURL() {
 }
 
 function makeDownload($file, $type, $filename) {
+    
     
     header("Content-Type: $type");
     
@@ -584,6 +593,8 @@ $ecad_php_htaccess_file = fopen('./ECAD PHP fileviewer X data/.htaccess', "w");
 $ecad_php_htaccess_file_Standard = '<Directory ./>'."\r\n".'Order deny,Allow'."\r\n".'Deny from all'."\r\n".'</Directory>';
 fwrite($ecad_php_htaccess_file, $ecad_php_htaccess_file_Standard);
 fclose($ecad_php_htaccess_file);
+
+ecad_php_log(__DIR__.'/ECAD PHP fileviewer X data',"INFO","ECAD PHP fileviewer successfully installed");
     }
 
 }
@@ -604,6 +615,7 @@ function rrmdir($dir) {
 }
 ?><?php
     function create_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete){
+        ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user created ".'['.$toCreateUsername.']');
                             //create user
                             mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername);
                             mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/data');
@@ -621,6 +633,7 @@ function rrmdir($dir) {
     }
 ?><?php
     function edit_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete){
+        ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user edited ".'['.$toCreateUsername.']');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
         $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'?>';
@@ -635,6 +648,7 @@ fclose($ecad_php_user_config_file);
 }
 ?><?php
     function edit_user_keep_password($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete){
+        ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user edited ".'['.$toCreateUsername.']');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
         $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$toCreateUserPassword."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'?>';
@@ -642,4 +656,20 @@ fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 
 }
+?><?php
+    //ecad_php_log($datarootpath,"TYPE","MESSAGE");
+    function ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,$type,$log_message){
+        //get IP
+        $client_Address = $_SERVER['REMOTE_ADDR'];
+        //get usercockie
+        if(!isset($_COOKIE['ECAD_PHP_fileviewer_login'])){
+            $user_cockie = "none";
+        }else{
+            $user_cockie = $_COOKIE['ECAD_PHP_fileviewer_login'];
+        }
+        //get time
+        $current_time = date("Y.m.d-H.i.s",time());
+        $log_text = '['.$current_time.']'.'['.$type.']'.'['.$client_Address.']'.'[cockie: '.$user_cockie.'] '.$log_message."\r\n";
+        file_put_contents ($ECAD_PHP_fileviewer_X_data_folder."/ecadPHP.log",$log_text,FILE_APPEND);
+    }
 ?>
