@@ -2,8 +2,8 @@
     
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.17c";
-    $ecad_php_version_number = "v0.1.16";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.17d";
+    $ecad_php_version_number = "v0.1.17";
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
     $log_fileUpload = true; //change in config.php!!!
@@ -386,7 +386,7 @@
             $show_user_interface = true;
             $nichtgelisteteDatein = array("index.php", ".htaccess", ".", "..");
             $files = scandir($fullpath.'/');
-            echo "Deleted files:</br>";
+            echo "Deleted files / folders:</br>";
             foreach($files as $file){
                 if (in_array ( $file , $nichtgelisteteDatein )){
                     
@@ -401,7 +401,13 @@
                         $new_filename = trim ($new_filename ," \t\n\r\0\x0B" );
                         
                         //delete folowing file..
-                        unlink(str_replace ("//" , "/" , $fullpath).$new_filename);
+                        //str_replace ("//" , "/" , $fullpath).$new_filename;
+                        if(is_dir(str_replace ("//" , "/" , $fullpath).$new_filename)){
+                            deleteDir(str_replace ("//" , "/" , $fullpath).$new_filename);
+                        }else{
+                            unlink(str_replace ("//" , "/" , $fullpath).$new_filename);
+                        }
+                        
                         
                     }
                 }
@@ -780,5 +786,20 @@ fclose($ecad_php_user_config_file);
         $current_time = date("Y.m.d-H.i.s",time());
         $log_text = '['.$current_time.']'.'['.$type.']'.'['.$client_Address.']'.'[cockie: '.$user_cockie.'] '.$log_message."\r\n";
         file_put_contents ($ECAD_PHP_fileviewer_X_data_folder."/ecadPHPLog.log",$log_text,FILE_APPEND);
+    }
+    
+    function deleteDir($dirPath) {
+        if (substr($dirPath, strlen($dirPath) - 1, 1) != '/') {
+            $dirPath .= '/';
+        }
+        $files = glob($dirPath . '*', GLOB_MARK);
+        foreach ($files as $file) {
+            if (is_dir($file)) {
+                self::deleteDir($file);
+            } else {
+                unlink($file);
+            }
+        }
+        rmdir($dirPath);
     }
 ?>

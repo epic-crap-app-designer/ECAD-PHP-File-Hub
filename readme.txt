@@ -1,4 +1,4 @@
-ECAD PHP fileviewer v0.1.17b Handbook
+﻿ECAD PHP fileviewer v0.1.17d Handbook
 
 Administrator: admin, admin
 
@@ -19,9 +19,11 @@ The accesseble files of the users are under /ECAD PHP fileviewer X data/users/us
 
 The passwords that are saved, are the md5 sum of the password and the secret word „word“.
 
-
 changes:
-v0.1.17c
+0.1.17d
+deleting folders with files inside implemented
+
+0.1.17c
 logging for uploads
 slight design change
 deleting files implemented
