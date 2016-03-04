@@ -2,10 +2,11 @@
     
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.16";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.17b";
     $ecad_php_version_number = "v0.1.16";
     installifneeded($secret_word, $ecad_php_version_number);
-$show_ecad_php_version_on_title = true;
+    $show_ecad_php_version_on_title = true;
+    $maximalUploadSize = "50M"; //if changed needs also to be set in the .htaccess file!! (php_value upload_max_filesize 50M and php_value post_max_size 50M)
 
     //load config
     include "config.php";
@@ -360,6 +361,27 @@ $show_ecad_php_version_on_title = true;
 
             
         }
+        if ( isset( $_POST['upload_single_file'] ) && $can_upload ) {
+            //include "upload_single.php";
+            ini_set ( 'post_max_size' , "50M" );
+            ini_set ( "upload_max_filesize" , "50M" );
+            //echo ini_get('post_max_size');
+            $target_dir = $fullpath;//"uploads/";
+            //echo $target_dir;
+            if(isset($_POST["upload_single_file"])) {
+                $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
+                if (file_exists($target_file)) {
+                    echo "A file with the same name allready exists</br>";
+                }else{
+                    //echo $target_file;
+                    //echo basename($_FILES["fileToUpload"]["tmp_name"]);
+                    move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file);
+                    echo "file: ".basename($_FILES["fileToUpload"]["name"])." uploaded to: ".$path."</br>";
+                }
+            }
+        }
+
+        
         if($show_user_interface){
             
             //normal user Interface
@@ -410,10 +432,42 @@ $show_ecad_php_version_on_title = true;
                 sort($files, SORT_NATURAL); // this does the sorting
                 
                 $datein = 0;
-                echo "\r\n".'<form method="POST" action="">';
+                echo "\r\n".'<form method="POST" action="" enctype="multipart/form-data">';
                 if($can_delete){ echo '<input name="rename_FolderOrFile" value="rename" type="submit"> <input name="delete_FolderOrFile" value="delete" type="submit" disabled> <input name="create_Folder" value="new folder" type="submit">';}
-                if($can_upload){ echo ' <input name="upload_FolderOrFile" value="upload" type="submit" disabled>';}
-                echo "</br></br>";
+                if($can_upload){ echo '<button type="button" onclick="showUploadFunction()">upload</button>';}//' <input name="upload_FolderOrFile" value="upload" type="submit">';}
+                //echo "\r\n".'</form>';
+                //uploader Form
+                //document.getElementById("uploadFormDiv").style.display = 'none';
+                ?>
+                <div id="uploadFormDiv">
+                
+                Select file to upload:
+                <input type="file" name="fileToUpload" id="fileToUpload">
+                <input type="submit" value="Upload File" name="upload_single_file">
+                
+                </div>
+                <script>
+                document.getElementById("uploadFormDiv").style.visibility = 'hidden';
+                document.getElementById("uploadFormDiv").style.height = '0px';
+                var uploadVisible = false;
+                function showUploadFunction(){
+                    if(uploadVisible){
+                        document.getElementById("uploadFormDiv").style.visibility = 'hidden';
+                        document.getElementById("uploadFormDiv").style.height = '0px';
+                        uploadVisible = false;
+                    }else{
+                        document.getElementById("uploadFormDiv").style.visibility = 'visible';
+                        document.getElementById("uploadFormDiv").style.height = 'auto';
+                        uploadVisible = true;;
+                    }
+                    
+                    
+                }
+                </script>
+                <?php
+
+                //echo "\r\n".'<form method="POST" action="" id="form1">';
+                //echo "</br></br>";
                 foreach($files as $file){
                     
                     if (in_array ( $file , $nichtgelisteteDatein )){
@@ -593,6 +647,9 @@ $ecad_php_htaccess_file = fopen('./ECAD PHP fileviewer X data/.htaccess', "w");
 $ecad_php_htaccess_file_Standard = '<Directory ./>'."\r\n".'Order deny,Allow'."\r\n".'Deny from all'."\r\n".'</Directory>';
 fwrite($ecad_php_htaccess_file, $ecad_php_htaccess_file_Standard);
 fclose($ecad_php_htaccess_file);
+
+//config htaccess in root folder
+file_put_contents(".htaccess","\r\nphp_value upload_max_filesize 50M\r\nphp_value post_max_size 50M",FILE_APPEND);
 
 ecad_php_log(__DIR__.'/ECAD PHP fileviewer X data',"INFO","ECAD PHP fileviewer successfully installed");
     }

@@ -1,4 +1,4 @@
-﻿ECAD PHP fileviewer v0.1.16 Handbook
+﻿ECAD PHP fileviewer v0.1.17b Handbook
 
 Administrator: admin, admin
 
@@ -21,6 +21,9 @@ The passwords that are saved, are the md5 sum of the password and the secret wor
 
 
 changes:
+v0.1.17b
+upload system implemented
+
 v0.1.16
 logging system implemented
 
