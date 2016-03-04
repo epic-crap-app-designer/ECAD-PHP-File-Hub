@@ -2,11 +2,12 @@
     
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.17b";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.17c";
     $ecad_php_version_number = "v0.1.16";
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
-    $maximalUploadSize = "50M"; //if changed needs also to be set in the .htaccess file!! (php_value upload_max_filesize 50M and php_value post_max_size 50M)
+    $log_fileUpload = true; //change in config.php!!!
+    $maximalUploadSize = "70M"; //if changed needs also to be set in the .htaccess file!! (php_value upload_max_filesize 50M and php_value post_max_size 50M)
 
     //load config
     include "config.php";
@@ -309,18 +310,7 @@
                 }else{
                     $file_in_html = str_replace(".","%2E",str_replace (" " , "%20" , $file));
                     $edit_file_if = (isset($_POST[('file_'.$file_in_html)]) && $_POST[('file_'.$file_in_html)]  ? "true" : "false");
-                    /*
-                    echo 'file_'.str_replace (" " , "%20" , $file);
-                    echo "</br>";
-                    echo var_dump($_POST[('file_'.str_replace(" " , "%20" , $file))]);
-                    echo "</br>";
-                    echo var_dump(isset($_POST[('file_'.str_replace (" " , "%20" , $file))]));
-                    echo "</br>";
-                    echo var_dump($_POST[('file_'.str_replace (" " , "%20" , $file))]  ? "true" : "false");
-                    echo "</br></br>";
-                     */
-                    //echo $edit_file_if;
-                    //echo "".$file.'  -->    '.'<input type="text" name="'.'file_'.str_replace (" " , "%20" , $file).'" value="'.$file.'"></input><br/>';
+
                     if(isset($_POST[('file_'.$file_in_html)]) ){
                         
                         echo "".$file.'  -->    '.'<input type="text" name="'.'file_'.$file_in_html.'" value="'.$file.'"></input><br/>';
@@ -361,10 +351,67 @@
 
             
         }
+        //delete files
+        if ( isset( $_POST['delete_FolderOrFile'] ) && $can_delete ) {
+            //get files of current folder
+            $show_user_interface = false;
+            $nichtgelisteteDatein = array("index.php", ".htaccess", ".", "..");
+            $files = scandir($fullpath.'/');
+            echo "really delete the following Items?</br>";
+            echo "\r\n".'<form method="POST" action="">';
+            $files_to_edit_counter = 0;
+            foreach($files as $file){
+                if (in_array ( $file , $nichtgelisteteDatein )){
+                    
+                }else{
+                    $file_in_html = str_replace(".","%2E",str_replace (" " , "%20" , $file));
+                    $edit_file_if = (isset($_POST[('file_'.$file_in_html)]) && $_POST[('file_'.$file_in_html)]  ? "true" : "false");
+
+                    if(isset($_POST[('file_'.$file_in_html)]) ){
+                        
+                        echo "".'<input type="text" name="'.'file_'.$file_in_html.'" value="'.$file.'"></input>'.'<br/>';
+                        $files_to_edit_counter++;
+                    }
+                }
+            }
+            if($files_to_edit_counter > 0){
+                echo '<input name="delete_FolderOrFile_submit" value="Yes" type="submit"><input name="" value="Abort" type="submit"></form>';
+            }else{
+                $show_user_interface = true;
+                echo "please select a Object to delete </br>";
+            }
+        }
+        if ( isset( $_POST['delete_FolderOrFile_submit'] ) && $can_delete ) {
+            //get files of current folder
+            $show_user_interface = true;
+            $nichtgelisteteDatein = array("index.php", ".htaccess", ".", "..");
+            $files = scandir($fullpath.'/');
+            echo "Deleted files:</br>";
+            foreach($files as $file){
+                if (in_array ( $file , $nichtgelisteteDatein )){
+                    
+                }else{
+                    $file_in_html = str_replace(".","%2E",str_replace (" " , "%20" , $file));
+                    //echo $edit_file_if;
+                    if(isset($_POST[('file_'.$file_in_html)]) ){
+                        echo $_POST[('file_'.$file_in_html)]."</br>";
+                        $new_filename = $_POST[('file_'.$file_in_html)];
+                        $new_filename = str_replace ("..\\" , " " , $new_filename);
+                        $new_filename = str_replace ("../" , " " , $new_filename);
+                        $new_filename = trim ($new_filename ," \t\n\r\0\x0B" );
+                        
+                        //delete folowing file..
+                        unlink(str_replace ("//" , "/" , $fullpath).$new_filename);
+                        
+                    }
+                }
+            }
+
+        }
         if ( isset( $_POST['upload_single_file'] ) && $can_upload ) {
             //include "upload_single.php";
-            ini_set ( 'post_max_size' , "50M" );
-            ini_set ( "upload_max_filesize" , "50M" );
+            ini_set ( 'post_max_size' , $maximalUploadSize );
+            ini_set ( "upload_max_filesize" , $maximalUploadSize );
             //echo ini_get('post_max_size');
             $target_dir = $fullpath;//"uploads/";
             //echo $target_dir;
@@ -376,7 +423,12 @@
                     //echo $target_file;
                     //echo basename($_FILES["fileToUpload"]["tmp_name"]);
                     move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file);
-                    echo "file: ".basename($_FILES["fileToUpload"]["name"])." uploaded to: ".$path."</br>";
+                    echo "file: &nbsp&nbsp".basename($_FILES["fileToUpload"]["name"])."&nbsp&nbsp uploaded to: ".$path."</br>";
+                    //if(if(isset($log_fileUpload){$log_fileUpload}else{true}){
+                    if($log_fileUpload){
+                        ecad_php_log($datarootpath,"INFO","file uploaded".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
+                    }
+
                 }
             }
         }
@@ -392,18 +444,18 @@
             echo '</head>';
             echo '<body>';
             
-            echo $ecad_php_version.'    <a href="index.php?action=logout"> logout </a></br>';
-            echo "user: ".$user."</br>";
+            echo $ecad_php_version." &nbsp&nbsp&nbsp    user: ".$user.'&nbsp&nbsp&nbsp&nbsp&nbsp <a href="index.php?action=logout">  logout </a></br>';
+            //echo "user: ".$user."</br>";
             
             //new path display system
-            
+            //echo "</br>";
             if ($path == '/'){
-                echo "</br> path: ";
+                echo "path: ";
                 echo'<a href="'.'">root</a><a> /</a>';
             }else{
                 $newpath = substr(curPageURL(), 0, strpos(curPageURL(),basename(__FILE__))).basename(__FILE__)."?path=/";
                 
-                echo "</br> path: ";
+                echo "path: ";
                 $path_array = split('/',$path);
                 
                 echo'<a href="'.$newpath.'">root</a><a> /</a>';
@@ -433,7 +485,7 @@
                 
                 $datein = 0;
                 echo "\r\n".'<form method="POST" action="" enctype="multipart/form-data">';
-                if($can_delete){ echo '<input name="rename_FolderOrFile" value="rename" type="submit"> <input name="delete_FolderOrFile" value="delete" type="submit" disabled> <input name="create_Folder" value="new folder" type="submit">';}
+                if($can_delete){ echo '<input name="rename_FolderOrFile" value="rename" type="submit"> <input name="delete_FolderOrFile" value="delete" type="submit"> <input name="create_Folder" value="new folder" type="submit">';}
                 if($can_upload){ echo '<button type="button" onclick="showUploadFunction()">upload</button>';}//' <input name="upload_FolderOrFile" value="upload" type="submit">';}
                 //echo "\r\n".'</form>';
                 //uploader Form
@@ -611,7 +663,7 @@ function installifneeded($secret_word, $ecad_php_version_number) {
     if(!file_exists("config.php")){
         //ecad php config file
         $ecadphpconfigfile = fopen("config.php", "w");
-        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.'/ECAD PHP fileviewer X data'."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'?>';
+        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.'/ECAD PHP fileviewer X data'."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'$log_fileUpload=false;'."\r\n".'?>';
 fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
 fclose($ecadphpconfigfile);
 //ecad php data folder
@@ -727,6 +779,6 @@ fclose($ecad_php_user_config_file);
         //get time
         $current_time = date("Y.m.d-H.i.s",time());
         $log_text = '['.$current_time.']'.'['.$type.']'.'['.$client_Address.']'.'[cockie: '.$user_cockie.'] '.$log_message."\r\n";
-        file_put_contents ($ECAD_PHP_fileviewer_X_data_folder."/ecadPHP.log",$log_text,FILE_APPEND);
+        file_put_contents ($ECAD_PHP_fileviewer_X_data_folder."/ecadPHPLog.log",$log_text,FILE_APPEND);
     }
 ?>
