@@ -1,12 +1,12 @@
 <?php
-    
+    //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.17d";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.17e";
     $ecad_php_version_number = "v0.1.17";
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
-    $log_fileUpload = true; //change in config.php!!!
+    $log_fileUpload = true;
     $maximalUploadSize = "70M"; //if changed needs also to be set in the .htaccess file!! (php_value upload_max_filesize 50M and php_value post_max_size 50M)
 
     //load config
@@ -68,8 +68,25 @@
     //-------------------
     if ($authentificated) {
         if($userIsAdmin||$user=="admin"){
-            //admin user Interface
             $show_user_interface = true;
+            //download log file
+            if ( $_GET["action"] == "getLogFile" ) {
+                //load log file
+                $show_user_interface = false;
+                ecad_php_log($datarootpath,"INFO","Log File was downlaoded!! ");
+                
+                $filename = "/ecadPHPLog.log";
+                
+                
+                makeDownload($datarootpath.$filename, filetype($datarootpath.$filename),$filename);
+                
+                //clean the file reader
+                ob_end_clean();
+                //read file for download
+                readfile($datarootpath.$filename);
+            }
+            if($show_user_interface){
+            //admin user Interface
             echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">';
             echo '<html xmlns="http://www.w3.org/1999/xhtml">';
             echo '<head>';
@@ -79,6 +96,7 @@
             
             echo $ecad_php_version.'    <a href="index.php?action=logout"> logout </a></br>';
             echo "user: ".$user." (you are adminnistrator)</br>";
+            }
             
             //Aktionen
             if ( isset( $_POST['delete_user'] ) ) {
@@ -88,7 +106,6 @@
             if ( isset( $_POST['really_delete_user'] ) ) {
                 rrmdir($datarootpath."/users/".$_POST['user_to_delete']);
             }
-            
             if ( isset( $_POST['create_user'] ) ) {
                 $show_user_interface = false;
                 echo '</br><form method="POST" action="">Username: <input type="text" name="username"></input><br/>Password: <input type="text" name="password"></input><br/>';
@@ -168,11 +185,12 @@
                         if ($file == "admin"){
                         echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"><span title="all sessions of this user will be closed"><input name="logout_user" value="logout" type="submit"></span></form>';
                         }else{
-                            echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"><input name="delete_user" value="delete" type="submit"><span title="all sessions of this user will be closed"><input name="logout_user" value="logout" type="submit"></span></form>';
+                            echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"><span title="the user and all his files will be deleted"><input name="delete_user" value="delete" type="submit"></span><span title="all sessions of this user will be closed"><input name="logout_user" value="logout" type="submit"></span></form>';
                         }
                     }
                 }
                 echo'</br><form method="POST" action=""><input name="create_user" value="new user" type="submit"></form>';
+                echo '</br></br><a href="index.php?action=getLogFile"> download log file </a>';
             }
            //---------------------------------------------
         }else{
@@ -378,7 +396,7 @@
                 echo '<input name="delete_FolderOrFile_submit" value="Yes" type="submit"><input name="" value="Abort" type="submit"></form>';
             }else{
                 $show_user_interface = true;
-                echo "please select a Object to delete </br>";
+                echo "no item selected! </br>";
             }
         }
         if ( isset( $_POST['delete_FolderOrFile_submit'] ) && $can_delete ) {
