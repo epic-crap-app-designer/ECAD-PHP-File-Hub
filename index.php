@@ -2,16 +2,19 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.17f";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.17g";
     $ecad_php_version_number = "v0.1.17";
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
-    $log_fileUpload = true;
     $maximalUploadSize = "70M"; //if changed needs also to be set in the .htaccess file!! (php_value upload_max_filesize 50M and php_value post_max_size 50M)
     $showAdministratorPath = false;
     $userIsAdmin = false;
+    
+    //variables for compatiblety
+    $canAccessSystemFolder= false;;
+    $log_fileUpload = true;
 
-
+    
     //load config
     include "config.php";
     
@@ -231,7 +234,11 @@
                         }
                     }
                     echo'</br><form method="POST" action=""><input name="create_user" value="new user" type="submit"></form>';
-                    echo '</br></br><a href="index.php?action=getLogFile"> download log file </a><span style="padding-left:80px"></span><a href="index.php?path=/"> Root file explorer </a>';
+                    echo '</br></br><a href="index.php?action=getLogFile"> download log file </a>';
+                    if($canAccessSystemFolder){
+                        echo '<span style="padding-left:80px"></span><a href="index.php?path=/"> root file explorer </a>';
+                    }
+                    
                 }else{
                     
                     
@@ -244,7 +251,7 @@
                     //file browser end-----------
                 }
             }
-            if($showAdministratorPath == false){
+            if($showAdministratorPath == false or !$canAccessSystemFolder){
                 $userIsAdmin = true;
             }
            //---------------------------------------------
@@ -315,6 +322,11 @@
                 }
             
             }else{
+                $path = str_replace (".." , "" , $path);
+                $fullpath = $datarootpath.$path;
+            }
+            if($canAccessSystemFolder){
+                $path = str_replace (".." , "" , $path);
                 $fullpath = $datarootpath.$path;
             }
     if(is_file($fullpath)){
@@ -756,7 +768,7 @@ fclose($ecad_php_user_config_file);
 //create admin
 mkdir('./ECAD PHP fileviewer X data/users/admin');
 $ecad_php_user_config_file = fopen('./ECAD PHP fileviewer X data/users/admin/userconfig.php', "w");
-$user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5("admin".$secret_word)."'".';'."\r\n".'$userIsAdmin= true;'."\r\n".'$can_upload= true;'."\r\n".'$can_delete= true;'."\r\n".'?>';
+$user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5("admin".$secret_word)."'".';'."\r\n".'$userIsAdmin= true;'."\r\n".'$can_upload= true;'."\r\n".'$can_delete= true;'."\r\n".'$canAccessSystemFolder= true;'.'?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 //create admin password
@@ -801,7 +813,7 @@ function rrmdir($dir) {
                             mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/data');
                             mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/downloadpreperation');
                             $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
-                            $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'?>';
+                            $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder=false;'.'?>';
                             fwrite($ecad_php_user_config_file, $user_config_file_Standard);
                             fclose($ecad_php_user_config_file);
                             //create user password
@@ -816,7 +828,7 @@ function rrmdir($dir) {
         ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user edited ".'['.$toCreateUsername.']');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
-        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'?>';
+        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".'?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 //create user password
@@ -831,7 +843,7 @@ fclose($ecad_php_user_config_file);
         ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user edited ".'['.$toCreateUsername.']');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
-        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$toCreateUserPassword."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'?>';
+        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$toCreateUserPassword."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".'?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 
