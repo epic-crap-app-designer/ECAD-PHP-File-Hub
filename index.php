@@ -2,20 +2,22 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.17e";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.17f";
     $ecad_php_version_number = "v0.1.17";
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
     $log_fileUpload = true;
     $maximalUploadSize = "70M"; //if changed needs also to be set in the .htaccess file!! (php_value upload_max_filesize 50M and php_value post_max_size 50M)
+    $showAdministratorPath = false;
+    $userIsAdmin = false;
+
 
     //load config
     include "config.php";
+    
     //show error (activate only in debug mode!)
     error_reporting(1);
-    //auto login as default user user0
-    //setcookie('ECAD_PHP_fileviewer_login',"user0".','.md5("admin".$secret_word)); if (!$_COOKIE['ECAD_PHP_fileviewer_login']) {header("Refresh:0; url=index.php");}
-
+    
     //authentification service cockie
     $authentificated = false;
     
@@ -44,7 +46,6 @@
             
 
             $str3706849=str_replace('<?php $acceptableuserLoginCockies = $acceptableuserLoginCockies."'.$_COOKIE['ECAD_PHP_fileviewer_login'].'-"; ?>', '',$str3706849);
-            
 
             file_put_contents($datarootpath."/users/".$c_username.'/login.php', $str3706849);
             
@@ -53,7 +54,6 @@
             $authentificated = false;
             header("Refresh:0; url=index.php");
         }
-        
     }else{
         $authentificated = false;
     }
@@ -67,7 +67,48 @@
     }
     //-------------------
     if ($authentificated) {
-        if($userIsAdmin||$user=="admin"){
+        if($user == "admin"){
+            $userIsAdmin = true;
+        }
+        if($userIsAdmin){//administrator is logged in
+            
+            //get path and validate
+            $path = $_GET["path"];
+            $path = substr($path, 7, strlen($path));
+            $path = str_replace ("%20" , " " , $path);
+            
+            //remove escape characters
+            $fullpath = $datarootpath.$path;
+            //validate path
+            if (strlen($path) >0){
+                if ($path[0] != "/"){
+                    $path ="/".$path;
+                }
+            }
+            $fullpath = $datarootpath.$path;
+            if($debug){
+                echo "</br>--------------debug------------------";
+                echo "</br> original path: ".$path;
+                echo "</br>full path: ".$fullpath;
+                echo "</br>-------------------------------------</br>";
+            }
+            if(!is_file($fullpath)){
+                if (strlen($path) >0){
+                    if ($path[0] != "/"){
+                        $path ="/".$path;
+                    }
+                    if ($path[strlen($path) - 1] != "/"){
+                        $path = $path."/";
+                    }
+                }else{
+                    $path = "/";
+                }
+                $path = str_replace (".." , "" , $path);
+                
+                $fullpath = $datarootpath.$path;
+            }
+            //path validate end-----
+            
             $show_user_interface = true;
             //download log file
             if ( $_GET["action"] == "getLogFile" ) {
@@ -77,15 +118,14 @@
                 
                 $filename = "/ecadPHPLog.log";
                 
-                
-                makeDownload($datarootpath.$filename, filetype($datarootpath.$filename),$filename);
+                makeDownload($datarootpath.$filename, filetype($datarootpath.$filename),"ecadPHPLog.log");
                 
                 //clean the file reader
                 ob_end_clean();
                 //read file for download
                 readfile($datarootpath.$filename);
             }
-            if($show_user_interface){
+            if($show_user_interface && $_GET["path"] == ""){
             //admin user Interface
             echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">';
             echo '<html xmlns="http://www.w3.org/1999/xhtml">';
@@ -172,94 +212,111 @@
             //--------------------
             //output
             if($show_user_interface){
-                echo '</br>users:</br>';
-                
-                $files = scandir($datarootpath.'/users/');
-                sort($files); // this does the sorting
-                
-                $datein = 0;
-                $nichtgelisteteDatein = array("index.php", ".htaccess", ".", "..");
-                foreach($files as $file){
-                    if (in_array ( $file , $nichtgelisteteDatein )){
-                    }else{
-                        if ($file == "admin"){
-                        echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"><span title="all sessions of this user will be closed"><input name="logout_user" value="logout" type="submit"></span></form>';
+                if ($_GET["path"] == "" or $_GET["path"] == ""){
+                    echo '</br>users:</br>';
+                    
+                    $files = scandir($datarootpath.'/users/');
+                    sort($files); // this does the sorting
+                    
+                    $datein = 0;
+                    $nichtgelisteteDatein = array("index.php", ".htaccess", ".", "..");
+                    foreach($files as $file){
+                        if (in_array ( $file , $nichtgelisteteDatein )){
                         }else{
-                            echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"><span title="the user and all his files will be deleted"><input name="delete_user" value="delete" type="submit"></span><span title="all sessions of this user will be closed"><input name="logout_user" value="logout" type="submit"></span></form>';
+                            if ($file == "admin"){
+                                echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"><span title="all sessions of this user will be closed"><input name="logout_user" value="logout" type="submit"></span></form>';
+                            }else{
+                                echo'<form method="POST" action="">'.$file.'<span style="padding-left:80px"></span>   <input type="hidden" name="user_to_delete" value="'.$file.'"><input name="edit_user" value="edit" type="submit"><span title="the user and all his files will be deleted"><input name="delete_user" value="delete" type="submit"></span><span title="all sessions of this user will be closed"><input name="logout_user" value="logout" type="submit"></span></form>';
+                            }
                         }
                     }
+                    echo'</br><form method="POST" action=""><input name="create_user" value="new user" type="submit"></form>';
+                    echo '</br></br><a href="index.php?action=getLogFile"> download log file </a><span style="padding-left:80px"></span><a href="index.php?path=/"> Root file explorer </a>';
+                }else{
+                    
+                    
+                    $path = $_GET["path"];
+                    $userIsAdmin = false;
+                    $showAdministratorPath = true;
+                    //echo "</br>-----ADMINISTRATIV-FILE-VIEWER-----</br>";
+                    echo '<a href="index.php?path="><--  back to user administration </a></br>';
+
+                    //file browser end-----------
                 }
-                echo'</br><form method="POST" action=""><input name="create_user" value="new user" type="submit"></form>';
-                echo '</br></br><a href="index.php?action=getLogFile"> download log file </a>';
+            }
+            if($showAdministratorPath == false){
+                $userIsAdmin = true;
             }
            //---------------------------------------------
-        }else{
-            //normal user logged in
+        }
+        if($userIsAdmin == false){
+    //normal user logged in
     //debug
-    if($debug){
-        echo "</br>--------------debug------------------";
-        echo "</br>";
-        echo "script: ".basename(__FILE__);
-        echo "</br>";
-        echo "script name: ".__FILE__;
-        echo "</br>";
-        echo "curPageURL: ".curPageURL();
-        echo "</br>";
-        echo "script directory: ".__DIR__;
-        echo "</br>";
-        echo "php self: ".$_SERVER['PHP_SELF'];
-        
-        echo "</br>server name: ".$_SERVER['SERVER_NAME'];
-        echo "</br>".getcwd();
-        
-        echo "</br>-------------------------------------";
-    }
-        //get path
-        $path = $_GET["path"];
-    $path = str_replace ("%20" , " " , $path);
+            if(!$showAdministratorPath){
+                if($debug){
+                    echo "</br>--------------debug------------------";
+                    echo "</br>";
+                    echo "script: ".basename(__FILE__);
+                    echo "</br>";
+                    echo "script name: ".__FILE__;
+                    echo "</br>";
+                    echo "curPageURL: ".curPageURL();
+                    echo "</br>";
+                    echo "script directory: ".__DIR__;
+                    echo "</br>";
+                    echo "php self: ".$_SERVER['PHP_SELF'];
+                    
+                    echo "</br>server name: ".$_SERVER['SERVER_NAME'];
+                    echo "</br>".getcwd();
+                    
+                    echo "</br>-------------------------------------";
+                }
+                //get path and validate
+                $path = $_GET["path"];
+                $path = str_replace ("%20" , " " , $path);
+                
+                
+                //remove escape characters
+                $fullpath = $datarootpath."/users/".$userpath."/data".$path;
+                //validate path
+                if (strlen($path) >0){
+                    if ($path[0] != "/"){
+                        $path ="/".$path;
+                    }
+                }
+                $fullpath = $datarootpath."/users/".$userpath."/data".$path;
+                if($debug){
+                    echo "</br>--------------debug------------------";
+                    echo "</br> original path: ".$path;
+                    echo "</br>-------------------------------------";
+                }
+                if(!is_file($fullpath)){
+                    if (strlen($path) >0){
+                        if ($path[0] != "/"){
+                            $path ="/".$path;
+                        }
+                        if ($path[strlen($path) - 1] != "/"){
+                            $path = $path."/";
+                        }
+                    }else{
+                        $path = "/";
+                    }
+                    $path = str_replace (".." , "" , $path);
+                    $fullpath = $datarootpath."/users/".$userpath."/data".$path;
+                }
+                //redo fullpath for file reading
+                
+                if($debug){
+                    echo "</br>--------------debug------------------";
+                    echo "</br> path: ".$path;
+                    echo "</br> fullpath: ".$fullpath;
+                    echo "</br>-------------------------------------";
+                    echo "</br></br></br></br>";
+                }
             
-            
-            
-            
-            
-            //remove escape characters
-    $fullpath = $datarootpath."/users/".$userpath."/data".$path;
-    //validate path
-    if (strlen($path) >0){
-        if ($path[0] != "/"){
-            $path ="/".$path;
-        }
-    }
-    $fullpath = $datarootpath."/users/".$userpath."/data".$path;
-    if($debug){
-    echo "</br>--------------debug------------------";
-    echo "</br> original path: ".$path;
-    echo "</br>-------------------------------------";
-    }
-    if(!is_file($fullpath)){
-        if (strlen($path) >0){
-            if ($path[0] != "/"){
-                $path ="/".$path;
+            }else{
+                $fullpath = $datarootpath.$path;
             }
-            if ($path[strlen($path) - 1] != "/"){
-                $path = $path."/";
-            }
-        }else{
-            $path = "/";
-        }
-        $path = str_replace (".." , "" , $path);
-        $fullpath = $datarootpath."/users/".$userpath."/data".$path;
-    }
-    //redo fullpath for file reading
-    
-    if($debug){
-        echo "</br>--------------debug------------------";
-        echo "</br> path: ".$path;
-        echo "</br> fullpath: ".$fullpath;
-        echo "</br>-------------------------------------";
-        echo "</br></br></br></br>";
-    }
-
     if(is_file($fullpath)){
         if($debug){
             echo "</br>--------------INFO-------------------";
@@ -267,6 +324,7 @@
             echo "</br>-------------------------------------";
             echo "</br>";
         }
+        
         //do download
         ecad_php_log($datarootpath,"INFO","file download ".'['.$path.']');
         
@@ -366,8 +424,6 @@
                     }
                 }
             }
-
-            
         }
         //delete files
         if ( isset( $_POST['delete_FolderOrFile'] ) && $can_delete ) {
@@ -425,12 +481,9 @@
                         }else{
                             unlink(str_replace ("//" , "/" , $fullpath).$new_filename);
                         }
-                        
-                        
                     }
                 }
             }
-
         }
         if ( isset( $_POST['upload_single_file'] ) && $can_upload ) {
             //include "upload_single.php";
@@ -452,11 +505,9 @@
                     if($log_fileUpload){
                         ecad_php_log($datarootpath,"INFO","file uploaded".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
                     }
-
                 }
             }
         }
-
         
         if($show_user_interface){
             
@@ -495,7 +546,6 @@
             }
             echo'</br>';
             
-            
             //old path display system
             //echo "</br> path: ".$path ."</br>";
             
@@ -510,14 +560,14 @@
                 $datein = 0;
                 echo "\r\n".'<form method="POST" action="" enctype="multipart/form-data">';
                 if($can_delete){ echo '<input name="rename_FolderOrFile" value="rename" type="submit"> <input name="delete_FolderOrFile" value="delete" type="submit"> <input name="create_Folder" value="new folder" type="submit">';}
-                if($can_upload){ echo '<button type="button" onclick="showUploadFunction()">upload</button>';}//' <input name="upload_FolderOrFile" value="upload" type="submit">';}
+                if($can_upload){ echo '<button type="button" onclick="showUploadFunction()">upload</button>';}
                 //echo "\r\n".'</form>';
                 //uploader Form
                 //document.getElementById("uploadFormDiv").style.display = 'none';
                 ?>
                 <div id="uploadFormDiv">
                 
-                Select file to upload:
+                Select a file to upload:
                 <input type="file" name="fileToUpload" id="fileToUpload">
                 <input type="submit" value="Upload File" name="upload_single_file">
                 
@@ -536,8 +586,6 @@
                         document.getElementById("uploadFormDiv").style.height = 'auto';
                         uploadVisible = true;;
                     }
-                    
-                    
                 }
                 </script>
                 <?php
@@ -622,7 +670,7 @@
                 setcookie('ECAD_PHP_fileviewer_login',$newUserCockies);
                 //setcookie('ECAD_PHP_fileviewer_login',$user.','.md5($pass.$secret_word));
                 echo "you are logged in      please wait.......";
-                header("Refresh:0; url=index.php?path=/");
+                header("Refresh:0; url=index.php?path=");
                 ecad_php_log($datarootpath,"INFO","user logged in ".'[new cockie: '.$newUserCockies.']');
 
             }
@@ -638,8 +686,6 @@
                         echo $ecad_php_version."</br></br>";
                     }
     ?>
-
-
 
 <form method="POST" action="index.php">
 Username: <input type="text" name="user"></input><br/>
@@ -687,11 +733,12 @@ function installifneeded($secret_word, $ecad_php_version_number) {
     if(!file_exists("config.php")){
         //ecad php config file
         $ecadphpconfigfile = fopen("config.php", "w");
-        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.'/ECAD PHP fileviewer X data'."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'$log_fileUpload=false;'."\r\n".'?>';
+        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.'/ECAD PHP fileviewer X data'."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'$log_fileUpload=true;'."\r\n".'?>';
 fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
 fclose($ecadphpconfigfile);
 //ecad php data folder
 mkdir('./ECAD PHP fileviewer X data/shares', 0777, true);
+mkdir('./ECAD PHP fileviewer X data/pages', 0777, true);
 mkdir('./ECAD PHP fileviewer X data/users/user0/data/test', 0777, true);
 mkdir('./ECAD PHP fileviewer X data/users/user0/downloadpreperation', 0777, true);
 
