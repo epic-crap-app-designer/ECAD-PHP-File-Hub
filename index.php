@@ -2,8 +2,8 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.17g";
-    $ecad_php_version_number = "v0.1.17";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.18";
+    $ecad_php_version_number = "v0.1.18";
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
     $maximalUploadSize = "70M"; //if changed needs also to be set in the .htaccess file!! (php_value upload_max_filesize 50M and php_value post_max_size 50M)
@@ -11,7 +11,7 @@
     $userIsAdmin = false;
     
     //variables for compatiblety
-    $canAccessSystemFolder= false;;
+    $canAccessSystemFolder = false;
     $log_fileUpload = true;
 
     
@@ -74,42 +74,7 @@
             $userIsAdmin = true;
         }
         if($userIsAdmin){//administrator is logged in
-            
-            //get path and validate
-            $path = $_GET["path"];
-            $path = substr($path, 7, strlen($path));
-            $path = str_replace ("%20" , " " , $path);
-            
-            //remove escape characters
-            $fullpath = $datarootpath.$path;
-            //validate path
-            if (strlen($path) >0){
-                if ($path[0] != "/"){
-                    $path ="/".$path;
-                }
-            }
-            $fullpath = $datarootpath.$path;
-            if($debug){
-                echo "</br>--------------debug------------------";
-                echo "</br> original path: ".$path;
-                echo "</br>full path: ".$fullpath;
-                echo "</br>-------------------------------------</br>";
-            }
-            if(!is_file($fullpath)){
-                if (strlen($path) >0){
-                    if ($path[0] != "/"){
-                        $path ="/".$path;
-                    }
-                    if ($path[strlen($path) - 1] != "/"){
-                        $path = $path."/";
-                    }
-                }else{
-                    $path = "/";
-                }
-                $path = str_replace (".." , "" , $path);
-                
-                $fullpath = $datarootpath.$path;
-            }
+
             //path validate end-----
             
             $show_user_interface = true;
@@ -193,11 +158,11 @@
                     if ($_POST['password'] ==""){
                         $current_administrative_user = $user;
                         include $datarootpath."/users/".$_POST['username']."/userconfig.php";
-                        edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"));
+                        edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"));
                         include $datarootpath."/users/".$current_administrative_user."/userconfig.php";
                     }else{
                 
-                edit_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"));
+                edit_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"));
                     }
                 }
             }
@@ -236,7 +201,7 @@
                     echo'</br><form method="POST" action=""><input name="create_user" value="new user" type="submit"></form>';
                     echo '</br></br><a href="index.php?action=getLogFile"> download log file </a>';
                     if($canAccessSystemFolder){
-                        echo '<span style="padding-left:80px"></span><a href="index.php?path=/"> root file explorer </a>';
+                        echo '<span style="padding-left:80px"></span><a href="index.php?path=/"> root file browser </a>';
                     }
                     
                 }else{
@@ -328,6 +293,21 @@
             if($canAccessSystemFolder){
                 $path = str_replace (".." , "" , $path);
                 $fullpath = $datarootpath.$path;
+                
+                if(!is_file($fullpath)){
+                    if (strlen($path) >0){
+                        if ($path[0] != "/"){
+                            $path ="/".$path;
+                        }
+                        if ($path[strlen($path) - 1] != "/"){
+                            $path = $path."/";
+                        }
+                    }else{
+                        $path = "/";
+                    }
+                    $path = str_replace (".." , "" , $path);
+                    $fullpath = $datarootpath."".$path;
+                }
             }
     if(is_file($fullpath)){
         if($debug){
@@ -489,7 +469,8 @@
                         //delete folowing file..
                         //str_replace ("//" , "/" , $fullpath).$new_filename;
                         if(is_dir(str_replace ("//" , "/" , $fullpath).$new_filename)){
-                            deleteDir(str_replace ("//" , "/" , $fullpath).$new_filename);
+                            //deleteDir(str_replace ("//" , "/" , $fullpath).$new_filename);
+                            rrmdir(str_replace ("//" , "/" , $fullpath).$new_filename);
                         }else{
                             unlink(str_replace ("//" , "/" , $fullpath).$new_filename);
                         }
@@ -824,7 +805,8 @@ function rrmdir($dir) {
                             
     }
 ?><?php
-    function edit_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete){
+    function edit_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete,$canAccessSystemFolder){
+        
         ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user edited ".'['.$toCreateUsername.']');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
@@ -839,7 +821,7 @@ fclose($ecad_php_user_config_file);
 
 }
 ?><?php
-    function edit_user_keep_password($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete){
+    function edit_user_keep_password($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete,$canAccessSystemFolder){
         ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user edited ".'['.$toCreateUsername.']');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
@@ -863,20 +845,5 @@ fclose($ecad_php_user_config_file);
         $current_time = date("Y.m.d-H.i.s",time());
         $log_text = '['.$current_time.']'.'['.$type.']'.'['.$client_Address.']'.'[cockie: '.$user_cockie.'] '.$log_message."\r\n";
         file_put_contents ($ECAD_PHP_fileviewer_X_data_folder."/ecadPHPLog.log",$log_text,FILE_APPEND);
-    }
-    
-    function deleteDir($dirPath) {
-        if (substr($dirPath, strlen($dirPath) - 1, 1) != '/') {
-            $dirPath .= '/';
-        }
-        $files = glob($dirPath . '*', GLOB_MARK);
-        foreach ($files as $file) {
-            if (is_dir($file)) {
-                self::deleteDir($file);
-            } else {
-                unlink($file);
-            }
-        }
-        rmdir($dirPath);
     }
 ?>
