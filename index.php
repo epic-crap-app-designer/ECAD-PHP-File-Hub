@@ -2,7 +2,7 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.18";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.18b";
     $ecad_php_version_number = "v0.1.18";
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
@@ -154,16 +154,21 @@
             }
             if ( isset( $_POST['edit_user_submit'] ) ) {
                 if($_POST['username'] != "" && file_exists($datarootpath."/users/".$_POST['username'])){
+                    $current_administrative_user = $user;
+                    //standard if userconfig not found
+                    $canAccessSystemFolder = false;
+                    $userIsAdmin = false;
+                    include $datarootpath."/users/".$_POST['username']."/userconfig.php";
                     
                     if ($_POST['password'] ==""){
-                        $current_administrative_user = $user;
-                        include $datarootpath."/users/".$_POST['username']."/userconfig.php";
                         edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"));
-                        include $datarootpath."/users/".$current_administrative_user."/userconfig.php";
+                        
                     }else{
                 
-                edit_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"));
+                        edit_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"));
                     }
+                    include $datarootpath."/users/".$current_administrative_user."/userconfig.php";
+                    $userIsAdmin = true;
                 }
             }
             if ( isset( $_POST['logout_user'] ) ) {
