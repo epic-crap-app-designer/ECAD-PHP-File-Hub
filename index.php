@@ -2,7 +2,7 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.19";
+    $ecad_php_version ="ECAD PHP fileviewer v0.1.19b";
     $ecad_php_version_number = "v0.1.19";
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
@@ -175,7 +175,7 @@ if ($authentificated) {
             }
             //upload file if file is being uploaded
             if ( isset( $_POST['upload_single_file'] ) && $can_upload ) {
-                upload_single_file($fullpath, $maximalUploadSize, $maximalUploadSize);
+                upload_single_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize);
             }
             //show user interface if nothing else has happend
             if($show_user_interface){
@@ -210,7 +210,7 @@ if ($authentificated) {
         handelLoginScreenView($show_ecad_php_version_on_title, $ecad_php_version, $datarootpath);
     }
 }
-//beginning of the functions ------------------------------------------------------------------------------------------------------------------------------------------------------
+//beginning of the functions --------------------------------------------------------------------------------------------------------------------------------------------------------------------
     ?><?php
         
 function curPageURL() {
@@ -402,8 +402,8 @@ function rrmdir($dir) {
                 echo $datein." Objects";
             }
         }else{
-            ecad_php_log($datarootpath,"INFO","folder / file not found ".'['.$path.']');
-            echo "</br> Folder not found";
+            ecad_php_log($datarootpath,"INFO","folder/file not found ".'['.$path.']');
+            echo "</br> Folder/File not found";
         }
         echo "</body>";
         echo "</html>";
@@ -509,7 +509,7 @@ function showUploadFunction(){
     //end of User interface Printer -----------------------------------------------------------------------------------------------------------------------------------
 ?><?php
     //user functions for (upload, download, create file, delete, change name) -----------------------------------------------------------------------------------------
-    function upload_single_file($fullpath, $maximalUploadSize, $maximalUploadSize){
+    function upload_single_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize){
         ini_set ( 'post_max_size' , $maximalUploadSize );
         ini_set ( "upload_max_filesize" , $maximalUploadSize );
         //echo ini_get('post_max_size');
@@ -523,11 +523,19 @@ function showUploadFunction(){
                 //echo $target_file;
                 //echo basename($_FILES["fileToUpload"]["tmp_name"]);
                 move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file);
-                echo "file: &nbsp&nbsp".basename($_FILES["fileToUpload"]["name"])."&nbsp&nbsp uploaded to: ".$path."</br>";
-                //if(if(isset($log_fileUpload){$log_fileUpload}else{true}){
-                if($log_fileUpload){
-                    ecad_php_log($datarootpath,"INFO","file uploaded".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
-                }
+                if(file_exists($target_file)){
+                    //file sucessfully uploaded
+                   echo "file: &nbsp&nbsp".basename($_FILES["fileToUpload"]["name"])."&nbsp&nbsp uploaded to: ".$path."</br>";
+                    if($log_fileUpload){
+                        ecad_php_log($datarootpath,"INFO","file uploaded ".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
+                    }
+                   }else{
+                       //file upload couldnt be completed
+                   echo "!!ERROR!! there was a problem uplaoding the file!!!!</br>";
+                       if($log_fileUpload){
+                           ecad_php_log($datarootpath,"ERROR","upload error!! (file not found in destination) ".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
+                       }
+                   }
             }
         }
     }
