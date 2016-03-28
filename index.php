@@ -2,8 +2,9 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP fileviewer v0.1.19b";
-    $ecad_php_version_number = "v0.1.19";
+    $ecad_php_version ="ECAD PHP file hub v0.2.01m";
+    $ecad_php_version_number = "v0.2.01m";
+    $ecad_php_version_id = 100;
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
     $maximalUploadSize = "70M"; //if changed needs also to be set in the .htaccess file!! (php_value upload_max_filesize 50M and php_value post_max_size 50M)
@@ -24,6 +25,11 @@
     
     //authentification service cockie
     $authentificated = false;
+    
+    //create test share:
+    //createNewShareFunction($datarootpath, "admin", "debug share");
+    //addUserToShareSubmit($datarootpath, "admin", "share id", "user0", "false", "false", "false", "false");
+    
     
     //check if login cockie exists on host
     if ($_COOKIE['ECAD_PHP_fileviewer_login']) {
@@ -104,7 +110,7 @@ if ($authentificated) {
         //creates a new user
         if ( isset( $_POST['create_user_submit'] ) ) {
             if($_POST['username'] != ""){
-                create_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"));
+                create_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),$_POST['allowed_shares']);
             }
         }
         //edits a user
@@ -129,61 +135,266 @@ if ($authentificated) {
         }
     }
     
-    //Normal user handling-------------------------------------------------------------------------------------------------------------------------------------
+    //Normal user handling-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
     if($userIsAdmin == false or $showFileViewer){
         //normal user logged in or administrator is showing file viewer
-        //get the path and full path
-        if($canAccessSystemFolder){
-            $path = getSafePath($datarootpath, "");
-            $fullpath = getSafeFullPath($datarootpath, "", $path);
-        }else{
-            $path = getSafePath($datarootpath, "/users/".$userpath."/data");
-            $fullpath = getSafeFullPath($datarootpath, "/users/".$userpath."/data", $path);
-        }
-        if(is_file($fullpath)){
-            //download file if path is a file
-            ecad_php_log($datarootpath,"INFO","file download ".'['.$path.']');
-            makeDownload($fullpath, $path);
-        }else{
-            //normal user -----------------------------------------
-            $show_user_interface = true;
-            //user inputs ---------------------------------------------------------------------------------------------
-            //create new folder
-            if ( isset( $_POST['create_Folder'] ) && $can_delete ) {
-                $show_user_interface = true;
-                create_Folder($fullpath);
-            }
-            //show rename folder / file form
-            if ( isset( $_POST['rename_FolderOrFile'] ) && $can_delete ) {
-                $show_user_interface = false;
-                rename_FolderOrFile($nichtgelisteteDatein, $fullpath);
-            }
-            //rename folder or file if user has comfirmed
-            if ( isset( $_POST['rename_FolderOrFile_submit'] ) && $can_delete ) {
-                $show_user_interface = true;
-                rename_FolderOrFile_submit($nichtgelisteteDatein, $fullpath);
-            }
-            //show form with delete file
-            if ( isset( $_POST['delete_FolderOrFile'] ) && $can_delete ) {
-                $show_user_interface = false;
-                delete_FolderOrFile($nichtgelisteteDatein, $fullpath);
-            }
-            //deletes files if user has comfirmed deltion
-            if ( isset( $_POST['delete_FolderOrFile_submit'] ) && $can_delete ) {
-                $show_user_interface = true;
-                delete_FolderOrFile_submit($nichtgelisteteDatein, $fullpath);
-            }
-            //upload file if file is being uploaded
-            if ( isset( $_POST['upload_single_file'] ) && $can_upload ) {
-                upload_single_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize);
-            }
-            //show user interface if nothing else has happend
-            if($show_user_interface){
-                printUserInterfaceFileViewer($user, $path, $fullpath, $datarootpath, $can_delete, $can_upload, $nichtgelisteteDatein, $ecad_php_version);
+        //check if normal path or share
+        if(isset($_GET["share"]) && !$canAccessSystemFolder){
+            $sharepath = $_GET["share"];
+            //share handling ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            if($sharepath == "" or $sharepath == "/"){
+                echo $ecad_php_version." &nbsp&nbsp&nbsp    user: ".$user.' <span style="padding-left:20px"></span><a href="index.php?userpanel">user panel</a><span style="padding-left:30px"></span> <a href="index.php?action=logout">  logout </a></br>';
+                //echo '<a href="index.php?path=/"><-- back to my files</a></br>';
+                //share selection-----------------------------------------------------------------
+                $showUserInterface = true;
+                
+                if ( isset( $_POST['edit_share'] ) ) {
+                    $showUserInterface = false;
+                    echo '<a href="index.php?share"><-- back to share overview</a></br>';
+                    editShareInterface($datarootpath, $user, $_POST['shareToEdit']);
+                }
+                
+                
+                
+                if(isset( $_POST['share_createNew'])){
+                    $showUserInterface = false;
+                    createShareView();
+                }
+                if(isset( $_POST['createNewShareSubmit'])){
+                    //create new share from create new share View data
+                    $shareName = getSafeString($_POST['share_name']);
+                    $usersToAdd = $_POST['usersInShare'];
+                    $shareCanUpload = $_POST[('can_upload')]  ? "true" : "false";
+                    $shareCanDelete = $_POST[('can_delete')]  ? "true" : "false";
+                    $shareCanDownload = $_POST[('can_download')]  ? "true" : "false";
+                    $shareCanAddUsers = $_POST[('can_addUsers')]  ? "true" : "false";
+                    
+                    //(isset($_POST[('')]) && $_POST[('')]  ? "true" : "false")
+                    if(countMyShares($datarootpath, $user) < $amountOfAllowedShares){
+                        createNewShareSubmit($datarootpath, $user, $shareName, $usersToAdd, $shareCanUpload, $shareCanDelete, $shareCanDownload, $shareCanAddUsers);
+                    }else{
+                        echo "you cant create any more shares!!!!</br></br>";
+                    }
+                    
+                }
+                
+                    //edit share view submit
+                if(isset( $_POST['edit_user_in_share'])){
+                    //edit user in share view
+                    $showUserInterface = false;
+                    editUserInShareView($datarootpath, $user);
+                }
+                if(isset( $_POST['editUserInShareSubmit'])){
+                    //edit user in share view submit
+                    $showUserInterface = false;
+                    editUserInShareSubmit($datarootpath, $user);
+                    editShareInterface($datarootpath, $user, $_POST['shareToEdit']);
+                }
+                
+                
+                
+                if(isset( $_POST['remove_user_in_share'])){
+                    //remove user from share view
+                    //<input name="shareToEdit" value="'.$shareID.'" type="hidden"><input name="shareUser" value="'.$userInShare.'" type="hidden">'
+                    removeUserFromShareView($datarootpath, $user);
+                    $showUserInterface = false;
+                }
+                if(isset( $_POST['remove_user_in_share_Submit'])){
+                    //remove user from share view submit
+                    removeUserFromShareSubmit($datarootpath, $user);
+                    $showUserInterface = false;
+                    editShareInterface($datarootpath, $user, $_POST['shareToEdit']);
+                }
+
+                
+                
+                if(isset( $_POST['add_user_to_share'])){
+                    //add user to share view
+                    $showUserInterface = false;
+                    addUserToShareView($_POST['shareToEdit']);
+                }
+                if(isset( $_POST['addUsersToShareSubmit'])){
+                    //add user to share view submit
+                    addUsersToShareSubmit($datarootpath, $user);
+                    
+                    //show share
+                    $showUserInterface = false;
+                    echo '<a href="index.php?share"><-- back to share overview</a></br>';
+                    editShareInterface($datarootpath, $user, $_POST['shareToEdit']);
+                }
+                
+                if(isset( $_POST['delete_share'])){
+                    //delete share view
+                    deleteShareView($datarootpath, $user);
+                    //show share
+                    $showUserInterface = false;
+                }
+                if(isset( $_POST['deleteShareSubmit'])){
+                    //delete share submit
+                    deleteShareSubmit($datarootpath, $user);
+                }
+                
+                
+                if($showUserInterface){
+                    printUserInterfaceShareSelection($datarootpath, $user, $amountOfAllowedShares);
+                }
+
+                
+            }else{
+                //share selected
+                //echo "share selected:</br>";
+                $shareID = getSafeShareID();
+                //check if share exists on this user
+                if(is_dir($datarootpath.'/users/'.$user.'/shares/'.$shareID)){
+                    $show_user_interface = true;
+                    
+                    //get information about share
+                    include $datarootpath.'/users/'.$user.'/shares/'.$shareID.'/shareinfo.php';
+                    //check if share does exist on owner
+                    if(is_dir($datarootpath.'/users/'.$shareCreatorName.'/shares/'.$shareID.'/')){
+                        //echo $datarootpath.'/users/'.$shareCreatorName.'/shares/'.$shareID.'/users/'.$user.'/userPermissions.php';
+                        //get permission information about this user in share
+                        include $datarootpath.'/users/'.$shareCreatorName.'/shares/'.$shareID.'/users/'.$user.'/userPermissions.php';
+                        //get requested path
+                        $sharepath = getSafeSharePath();
+                        //get requested full path
+                        $fullSharePath = getSafeFullSharePath($datarootpath, $shareCreatorName, $shareID, $sharepath);
+                        //echo $fullSharePath;
+                        //start of functions -----------------------------------------------------------------------
+                        //check if file and prepare download
+                        if(is_file(rtrim($fullSharePath, '/'))){
+                            //check if permission to downlaod
+                            if(($shareCanDownload == 'true')||($user == $shareCreatorName)){
+                                //download file if path is a file
+                                ecad_php_log($datarootpath,"INFO","file download from share [".$shareID.$sharepath."]");
+                                makeDownload(rtrim($fullSharePath, '/'), rtrim($sharepath, '/'));
+                            }else{
+                                echo "</br></br>you are not allowed to downlaod!!!!";
+                            }
+                        }else{
+                            //functions:
+                            //create new folder in share
+                            if ( isset( $_POST['create_Folder'] ) && (($shareCanDelete == 'true')||($user == $shareCreatorName)) ) {
+                                $show_user_interface = true;
+                                create_Folder($fullSharePath);
+                            }
+                            
+                            //show rename folder / file form for share
+                            if ( isset( $_POST['rename_FolderOrFile'] ) && (($shareCanDelete == 'true')||($user == $shareCreatorName)) ) {
+                                $show_user_interface = false;
+                                rename_FolderOrFile($nichtgelisteteDatein, $fullSharePath);
+                            }
+                            //rename folder or file if user has comfirmed for share
+                            if ( isset( $_POST['rename_FolderOrFile_submit'] ) && (($shareCanDelete == 'true')||($user == $shareCreatorName)) ) {
+                                $show_user_interface = true;
+                                rename_FolderOrFile_submit($nichtgelisteteDatein, $fullSharePath);
+                            }
+                            
+                            //show form with delete file for sahre
+                            if ( isset( $_POST['delete_FolderOrFile'] ) && (($shareCanDelete == 'true')||($user == $shareCreatorName)) ) {
+                                $show_user_interface = false;
+                                delete_FolderOrFile($nichtgelisteteDatein, $fullSharePath);
+                            }
+                            //deletes files if user has comfirmed deltion for share
+                            if ( isset( $_POST['delete_FolderOrFile_submit'] ) && (($shareCanDelete == 'true')||($user == $shareCreatorName)) ) {
+                                $show_user_interface = true;
+                                delete_FolderOrFile_submit($nichtgelisteteDatein, $fullSharePath);
+                            }
+                            
+                            //upload file if file is being uploaded
+                            if ( isset( $_POST['upload_single_file'] ) && (($shareCanUpload == 'true')||($user == $shareCreatorName)) ) {
+                                upload_single_file($datarootpath, $log_fileUpload, $fullSharePath, $sharepath, $maximalUploadSize, $maximalUploadSize);
+                            }
+                            
+                            //-----------
+
+                            //echo "</br>shareID: ".$shareID;
+                            //echo "</br>share path: ".$sharepath;
+                            //echo "</br>full share path: ".$fullSharePath;
+                            //echo"</br></br>";
+                            
+                            if($show_user_interface){
+                                //echo '<a href="index.php?path=/"><-- back to normal files</a></br>';
+                                if($user == $shareCreatorName){
+                                    printUserInterfaceShareFileViewer($shareID, $user, $sharepath, $fullSharePath, $datarootpath, true, true, $nichtgelisteteDatein, $ecad_php_version, $shareName, $shareID);
+                                }else{
+                                    printUserInterfaceShareFileViewer($shareID, $user, $sharepath, $fullSharePath, $datarootpath, ($shareCanDelete == 'true'), ($shareCanUpload == 'true'), $nichtgelisteteDatein, $ecad_php_version, $shareName, $shareID);
+                                }
+                                
+                            }
+                        }
+                    }else{
+                        echo '<a href="index.php?userpanel"><-- back to user panel</a></br>';
+                        echo 'the share no longer exists!!!';
+                    }
+                   }else{
+                       echo '<a href="index.php?userpanel"><-- back to user panel</a></br>';
+                       echo "share not found or no permissions";
+                   }
+
             }
             
-            //end of system for logged in users------------------------------------------------------------------------
+           
+        }else if (isset($_GET["userpanel"])){
+            //show user panel
+            showUserPanel($datarootpath, $user, $ecad_php_version);
+            
+        }else{
+            //normal path handling ----------------------------------------------------------------------------------------------------------------------------------------------------------
+            //get the path and full path
+            if($canAccessSystemFolder){
+                $path = getSafePath($datarootpath, "");
+                $fullpath = getSafeFullPath($datarootpath, "", $path);
+            }else{
+                $path = getSafePath($datarootpath, "/users/".$userpath."/data");
+                $fullpath = getSafeFullPath($datarootpath, "/users/".$userpath."/data", $path);
+            }
+            if(is_file($fullpath)){
+                //download file if path is a file
+                ecad_php_log($datarootpath,"INFO","file download ".'['.$path.']');
+                makeDownload($fullpath, $path);
+            }else{
+                //normal user -----------------------------------------
+                $show_user_interface = true;
+                //user inputs ---------------------------------------------------------------------------------------------
+                //create new folder
+                if ( isset( $_POST['create_Folder'] ) && $can_delete ) {
+                    $show_user_interface = true;
+                    create_Folder($fullpath);
+                }
+                //show rename folder / file form
+                if ( isset( $_POST['rename_FolderOrFile'] ) && $can_delete ) {
+                    $show_user_interface = false;
+                    rename_FolderOrFile($nichtgelisteteDatein, $fullpath);
+                }
+                //rename folder or file if user has comfirmed
+                if ( isset( $_POST['rename_FolderOrFile_submit'] ) && $can_delete ) {
+                    $show_user_interface = true;
+                    rename_FolderOrFile_submit($nichtgelisteteDatein, $fullpath);
+                }
+                //show form with delete file
+                if ( isset( $_POST['delete_FolderOrFile'] ) && $can_delete ) {
+                    $show_user_interface = false;
+                    delete_FolderOrFile($nichtgelisteteDatein, $fullpath);
+                }
+                //deletes files if user has comfirmed deltion
+                if ( isset( $_POST['delete_FolderOrFile_submit'] ) && $can_delete ) {
+                    $show_user_interface = true;
+                    delete_FolderOrFile_submit($nichtgelisteteDatein, $fullpath);
+                }
+                //upload file if file is being uploaded
+                if ( isset( $_POST['upload_single_file'] ) && $can_upload ) {
+                    upload_single_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize);
+                }
+                //show user interface if nothing else has happend
+                if($show_user_interface){
+                    printUserInterfaceFileViewer($user, $path, $fullpath, $datarootpath, $can_delete, $can_upload, $nichtgelisteteDatein, $ecad_php_version);
+                }
+                
+                //end of system for normal paths------------------------------------------------------------------------
+            }
         }
+        //end of system for logged in users------------------------------------------------------------------------
         //end of file view------------------------
     }
 }else{
@@ -210,6 +421,15 @@ if ($authentificated) {
         handelLoginScreenView($show_ecad_php_version_on_title, $ecad_php_version, $datarootpath);
     }
 }
+    //unsorted functions-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    function getSafeString($text){
+        
+        $text = preg_replace('/[^a-z0-9]/i', '_', $text);
+        
+        return $text;
+    }
+
+    
 //beginning of the functions --------------------------------------------------------------------------------------------------------------------------------------------------------------------
     ?><?php
         
@@ -240,42 +460,34 @@ function makeDownloadHead($file, $type, $filename) {
 function installifneeded($secret_word, $ecad_php_version_number) {
         //$secret_word = "word";
     if(!file_exists("config.php")){
+        $dataFolderName = '/ECAD PHP file hub data';
         //ecad php config file
         $ecadphpconfigfile = fopen("config.php", "w");
-        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.'/ECAD PHP fileviewer X data'."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'$log_fileUpload=true;'."\r\n".'?>';
+        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.$dataFolderName."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'$log_fileUpload=true;'."\r\n".'?>';
 fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
 fclose($ecadphpconfigfile);
 //ecad php data folder
-mkdir('./ECAD PHP fileviewer X data/shares', 0777, true);
-mkdir('./ECAD PHP fileviewer X data/pages', 0777, true);
-mkdir('./ECAD PHP fileviewer X data/users/user0/data/test', 0777, true);
-mkdir('./ECAD PHP fileviewer X data/users/user0/downloadpreperation', 0777, true);
+mkdir('.'.$dataFolderName.'/shares', 0777, true);
+mkdir('.'.$dataFolderName.'/pages', 0777, true);
+mkdir('.'.$dataFolderName.'/users', 0777, true);
 
 //create user0
-$ecad_php_user_config_file = fopen('./ECAD PHP fileviewer X data/users/user0/userconfig.php', "w");
-$user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5("admin".$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload= false;'."\r\n".'$can_delete= false;'."\r\n".'?>';
-fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-fclose($ecad_php_user_config_file);
-//create user0 password
-$ecad_php_user_config_file = fopen('./ECAD PHP fileviewer X data/users/user0/login.php', "w");
-$user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
-fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-fclose($ecad_php_user_config_file);
+create_user("user0","admin",'.'.$dataFolderName.'/',$secret_word, "false", "false","0");
+//create user0 test folder
+mkdir('.'.$dataFolderName.'/users/user0/data/test', 0777, true);
+
 
 //create admin
-mkdir('./ECAD PHP fileviewer X data/users/admin');
-$ecad_php_user_config_file = fopen('./ECAD PHP fileviewer X data/users/admin/userconfig.php', "w");
-$user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5("admin".$secret_word)."'".';'."\r\n".'$userIsAdmin= true;'."\r\n".'$can_upload= true;'."\r\n".'$can_delete= true;'."\r\n".'$canAccessSystemFolder= true;'.'?>';
-fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-fclose($ecad_php_user_config_file);
-//create admin password
-$ecad_php_user_config_file = fopen('./ECAD PHP fileviewer X data/users/admin/login.php', "w");
-$user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
+create_user("admin","admin",'.'.$dataFolderName.'/',$secret_word, "true", "true","0");
+//make changes for admin
+$ecad_php_user_config_file = fopen('.'.$dataFolderName.'/users/admin/userconfig.php', "w");
+$user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5("admin".$secret_word)."'".';'."\r\n".'$userIsAdmin= true;'."\r\n".'$can_upload= true;'."\r\n".'$can_delete= true;'."\r\n".'$canAccessSystemFolder= true;'.'$amountOfAllowedShares=0;'.'?>';
 fwrite($ecad_php_user_config_file, $user_config_file_Standard);
 fclose($ecad_php_user_config_file);
 
+
 //configurate htaccess
-$ecad_php_htaccess_file = fopen('./ECAD PHP fileviewer X data/.htaccess', "w");
+$ecad_php_htaccess_file = fopen('.'.$dataFolderName.'/.htaccess', "w");
 $ecad_php_htaccess_file_Standard = '<Directory ./>'."\r\n".'Order deny,Allow'."\r\n".'Deny from all'."\r\n".'</Directory>';
 fwrite($ecad_php_htaccess_file, $ecad_php_htaccess_file_Standard);
 fclose($ecad_php_htaccess_file);
@@ -283,7 +495,7 @@ fclose($ecad_php_htaccess_file);
 //config htaccess in root folder
 file_put_contents(".htaccess","\r\nphp_value upload_max_filesize 50M\r\nphp_value post_max_size 50M",FILE_APPEND);
 
-ecad_php_log(__DIR__.'/ECAD PHP fileviewer X data',"INFO","ECAD PHP fileviewer successfully installed");
+ecad_php_log(__DIR__.''.$dataFolderName.'',"INFO","ECAD PHP fileviewer successfully installed");
     }
 
 }
@@ -303,7 +515,7 @@ function rrmdir($dir) {
     } 
 }
 ?><?php
-    function create_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete){
+    function create_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete,$amountOfAllowedShares){
         ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user created ".'['.$toCreateUsername.']');
         //create user folders
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername);
@@ -311,7 +523,7 @@ function rrmdir($dir) {
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/downloadpreperation');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
-        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder=false;'.'?>';
+        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder=false;'.'$amountOfAllowedShares='.$amountOfAllowedShares.';?>';
         fwrite($ecad_php_user_config_file, $user_config_file_Standard);
         fclose($ecad_php_user_config_file);
         //create user cockie file
@@ -319,14 +531,18 @@ function rrmdir($dir) {
         $user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
         fwrite($ecad_php_user_config_file, $user_config_file_Standard);
         fclose($ecad_php_user_config_file);
-                            
+
+        //create user share data
+        mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/sharemounts');
+        mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/shares');
+
     }
 ?><?php
-    function edit_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete,$canAccessSystemFolder){
+    function edit_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete,$canAccessSystemFolder,$amountOfAllowedShares){
         ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user edited ".'['.$toCreateUsername.']');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
-        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".'?>';
+        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".'$amountOfAllowedShares='.$amountOfAllowedShares.";\r\n".'?>';
         fwrite($ecad_php_user_config_file, $user_config_file_Standard);
         fclose($ecad_php_user_config_file);
         //create user cockie file
@@ -337,11 +553,11 @@ function rrmdir($dir) {
 
 }
 ?><?php
-    function edit_user_keep_password($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete,$canAccessSystemFolder){
+    function edit_user_keep_password($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete,$canAccessSystemFolder,$amountOfAllowedShares){
         ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user edited (password kept) ".'['.$toCreateUsername.']');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
-        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$toCreateUserPassword."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".'?>';
+        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$toCreateUserPassword."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".'$amountOfAllowedShares='.$amountOfAllowedShares.";\r\n".'?>';
         fwrite($ecad_php_user_config_file, $user_config_file_Standard);
         fclose($ecad_php_user_config_file);
 
@@ -442,7 +658,7 @@ function showUploadFunction(){
         echo '</head>';
         echo '<body>';
         
-        echo $ecad_php_version." &nbsp&nbsp&nbsp    user: ".$user.'&nbsp&nbsp&nbsp&nbsp&nbsp <a href="index.php?action=logout">  logout </a></br>';
+        echo $ecad_php_version." &nbsp&nbsp&nbsp    user: ".$user.' <span style="padding-left:20px"></span><a href="index.php?userpanel">user panel</a><span style="padding-left:30px"></span> <a href="index.php?action=logout">  logout </a></br>';
     }
     function printUserPath($path){
         if ($path == '/'){
@@ -494,7 +710,7 @@ function showUploadFunction(){
             echo "\r\n";
             $file_in_html = str_replace(".","%2E",str_replace (" " , "%20" , $file));
             //makes a checkbox if user can delete files
-            if($can_delete){ echo '<input type="checkbox" name='."'".'file_'.$file_in_html.''."'".' value="true"></input> ';}
+            if($can_delete){ echo '<input type="checkbox" name="file_'.$file_in_html.'" value="true"></input> ';}
             
             //writes the filesize of the given file in human readeble form
             printFileSize($fullpath, $file);
@@ -847,10 +1063,10 @@ function edit_user_submit($datarootpath, $secret_word){
         include $datarootpath."/users/".$_POST['username']."/userconfig.php";
         
         if ($_POST['password'] ==""){
-            edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"));
+            edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"),$_POST['allowed_shares']);
             
         }else{
-            edit_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"));
+            edit_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"),$_POST['allowed_shares']);
         }
         include $datarootpath."/users/".$current_administrative_user."/userconfig.php";
         $userIsAdmin = true;
@@ -879,12 +1095,15 @@ function printEditUserView($datarootpath){
     }else{
         echo 'can delete / edit:<input type="checkbox" name="can_delete" value="can_delete"></br>';
     }
+    echo 'amount of allowed shares: <input type="text" name="allowed_shares" value="'.$amountOfAllowedShares.'"></input> (10 recomendet)</br>';
+    
     echo '<input name="edit_user_submit" value="OK" type="submit"></form>';
 }
 function printCreateUserView(){
     echo '</br><form method="POST" action="">Username: <input type="text" name="username"></input><br/>Password: <input type="text" name="password"></input><br/>';
     echo 'can upload:<input type="checkbox" name="can_upload" value="is admin"></br>';
     echo 'can delete / edit:<input type="checkbox" name="can_delete" value="is admin"></br>';
+    echo 'amount of allowed shares: <input type="text" name="allowed_shares" value="0"></input> (10 recomendet)</br>';
     echo '<input name="create_user_submit" value="OK" type="submit"></form>';
 }
 function downloadLogFile($datarootpath){
@@ -900,5 +1119,578 @@ function downloadLogFile($datarootpath){
     readfile($datarootpath.$filename);
 }
 
+
+?><?php
+//sharing system functions ---------------------------------------------------------------------------------------------------------------------
+    //interface share owerview
+    function printUserInterfaceShareSelection($datarootpath, $user, $userMaximumShares){
+        //echo "user: ".$user;
+        echo 'share selection menu';
+        echo "</br>";
+        //echo "</br>";
+        $sharesPath = $datarootpath.'/users/'.$user.'/shares/';
+        $files = scandir($sharesPath);
+        //echo "shares:</br>";
+        $mySharesList = "";
+        $mySharesCounter = 0;
+        $otherShareList = "";
+        $otherSharesCounter = 0;
+        
+        $brokenShareList = "";
+        $brokenShareCount = 0;
+        foreach($files as $file){
+            if($file != "." && $file != ".."){
+                include $sharesPath.$file."/shareinfo.php";
+                //echo $sharesPath.$file."</br>";
+                if(!is_file($sharesPath.$file."/shareinfo.php")){
+                    $brokenShareCount++;
+                    $brokenShareList .= '<form method="POST" action="" style="margin-bottom: 0px;">Folder Name (ID): '.$file.'</form>';
+                }else if($shareCreatorName == $user){
+                    $mySharesCounter++;
+                    $mySharesList .= '<form method="POST" action="" style="margin-bottom: 0px;">'.$shareName.'<span style="padding-left:20px"></span> (owner: '.$shareCreatorName.')<span style="padding-left:20px"></span><a href="index.php?share='.$shareID.'/">browse share</a><span style="padding-left:10px"></span><input name="mount_share" value="mount" type="submit" disabled><input name="edit_share" value="edit" type="submit"><input name="delete_share" value="delete" type="submit"><span style="padding-left:20px"></span> (shareID: '.$shareID.')<input name="shareToEdit" value="'.$shareID.'" type="hidden"></form>';
+                }else{
+                    $otherSharesCounter++;
+                    $otherSharesList .= '<form method="POST" action="" style="margin-bottom: 0px;">'.$shareName.'<span style="padding-left:20px"></span> (owner: '.$shareCreatorName.')<span style="padding-left:20px"></span><a href="index.php?share='.$shareID.'/">browse share</a><span style="padding-left:10px"></span><input name="mount_share" value="mount" type="submit" disabled><span style="padding-left:20px"></span> (shareID: '.$shareID.')<input name="selectedShareToEdit" value="'.$shareID.'" type="hidden"></form>';
+                    
+                }
+                //echo $shareName.'<span style="padding-left:20px"></span> (owner: '.$shareCreatorName.')<span style="padding-left:20px"></span><a href="index.php?share='.$shareID.'/">browse share</a><span style="padding-left:10px"></span><input name="mount_share" value="mount" type="submit"><span style="padding-left:20px"></span> (shareID: '.$shareID.')</br>';
+            }
+        }
+        if( $mySharesCounter > 0 || $userMaximumShares > 0){
+            //print my shares
+            echo "</br>my shares (".$mySharesCounter." / ".$userMaximumShares.') <span style="padding-left:20px"></span><form method="POST" action="" style="margin-bottom: 0px; display:inline;"><input name="share_createNew" value="create new share" type="submit"></form></br>';
+            if($mySharesCounter == 0){
+                echo '&nbsp&nbsp&nbsp&nbsp you haven\'t created any shares';
+            }
+            echo $mySharesList;
+            //print other shares
+            echo "</br></br>other shares (".$otherSharesCounter.")</br>";
+            if($otherSharesCounter == 0){
+                echo '&nbsp&nbsp&nbsp&nbsp no shares have been shared with you';
+            }
+            echo $otherSharesList;
+        }else{
+            echo "</br>shares (".$otherSharesCounter.")</br>";
+            if($otherSharesCounter == 0){
+                echo '&nbsp&nbsp&nbsp&nbsp no shares have been shared with you';
+            }
+            echo $otherSharesList;
+        }
+        if ($brokenShareCount > 0){
+            echo "</br></br></br>broken shares (".$brokenShareCount.") please contact your administrator to fix this problem</br>";
+            echo $brokenShareList;
+        }
+    }
+    
+    //create new share
+    function createNewShareFunction($datarootpath, $user, $shareName){
+        $newShareID = md5(uniqid("word", true));
+        $sharePath = $datarootpath.'/users/'.$user.'/shares/'.$newShareID.'';
+        //echo $sharePath.'/data/';
+        mkdir($sharePath.'/');
+        mkdir($sharePath.'/data/');
+        mkdir($sharePath.'/users/');
+        
+        $shareFileData = '<?php $shareCreatorName="'.$user.'";$shareName="'.$shareName.'";$shareID="'.$newShareID.'";?>';
+        $shareFileInfo = fopen($sharePath.'/shareinfo.php'.'',"w");
+        fwrite($shareFileInfo, $shareFileData);
+        fclose($shareFileInfo);
+        return $newShareID;
+
+
+    }
+function editShareInterface($datarootpath, $user, $shareID){
+    $sharesPath = $datarootpath.'/users/'.$user.'/shares/';
+    //echo $sharesPath.$shareID."/shareinfo.php";
+    include $sharesPath.$shareID."/shareinfo.php";
+    echo "</br>owner: ".$shareCreatorName;
+    echo "</br>shareID: ".$shareID;
+    include $sharesPath.$shareID."/users/".$user."/userPermissions.php";
+    //check if the user has permission to edit the share
+    if(($shareCanAddUsers=='true')||($shareCreatorName == $user) ){
+        
+        $usersInShare = getUsersOfShare($datarootpath, $user, $shareID);
+        echo "</br>sharename: ".$shareName.'</br></br></br>';
+        echo '<form method="POST" action="" style="margin-bottom: 0px; display:inline;"><input name="shareToEdit" value="'.$shareID.'" type="hidden">'."users in share (".sizeof($usersInShare)."): ".'<input name="add_user_to_share" value="add users to share" type="submit"></form>';
+        foreach($usersInShare as $userInShare){
+            include $sharesPath.$shareID."/users/".$userInShare."/userPermissions.php";
+            echo '</br></br><form method="POST" action="" style="margin-bottom: 0px;"><input name="shareToEdit" value="'.$shareID.'" type="hidden"><input name="shareUser" value="'.$userInShare.'" type="hidden">'.$userInShare;
+            echo '<span style="padding-left:20px"></span><input name="edit_user_in_share" value="edit" type="submit"><input name="remove_user_in_share" value="remove from share" type="submit"></form>';
+            echo 'Permissions:  can download = '.$shareCanDownload.';  can upload = '.$shareCanUpload.';  can delete/edit = '.$shareCanDelete.';  can add users = '.$shareCanAddUsers.';';
+        }
+        echo '</br></br><form method="POST" action="" style="margin-bottom: 0px;"><input name="shareToEdit" value="'.$shareID.'" type="hidden"></br></br><input name="ok" value="ok" type="submit"><span style="padding-left:50px"></span><input name="delete_share" value="delete share" type="submit"></form>';
+    }else{
+        ecad_php_log($datarootpath,"WARNING","edit shre interface request without permissions ".'[ID:'.$shareID.']');
+        echo "you have no permissions to edit this share";
+    }
+}
+function getUsersOfShare($datarootpath, $user, $shareID){
+
+    $sharesUserPath = $datarootpath.'/users/'.$user.'/shares/'.$shareID.'/users/';
+    $files = scandir($sharesUserPath);
+    $userInShare = array();
+    //echo "shares:</br>";
+    foreach($files as $file){
+        if($file != "." && $file != ".."){
+            array_push($userInShare, $file);
+            
+        }
+    }
+    return $userInShare;
+}
+
+    //add user to share (disalow "/" character! befor running)
+
+function addUserToShareSubmit($datarootpath, $user, $shareID, $toAddUser, $shareCanUpload, $shareCanDelete, $shareCanDownload, $shareCanAddUsers){
+    if( $toAddUser != $user){
+        //add to allowed list of share
+        $sharePath = $datarootpath.'/users/'.$user.'/shares/'.$shareID.'';
+        include $sharePath.'/shareinfo.php';
+
+        mkdir($sharePath.'/users/'.$toAddUser.'/');
+        
+        $shareFileData = '<?php $shareCanUpload="'.$shareCanUpload.'";$shareCanDelete="'.$shareCanDelete.'";$shareCanDownload="'.$shareCanDownload.'";$shareCanAddUsers="'.$shareCanAddUsers.'";?>';
+        $shareFileInfo = fopen($sharePath.'/users/'.$toAddUser.'/userPermissions.php'.'',"w");
+        fwrite($shareFileInfo, $shareFileData);
+        fclose($shareFileInfo);
+        
+        //add share to other user
+        $otherUserPath = $datarootpath.'/users/'.$toAddUser.'/shares/'.$shareID.'';
+        mkdir($otherUserPath.'/');
+        
+        $shareFileData = '<?php $shareCreatorName="'.$shareCreatorName.'";$shareName="'.$shareName.'";$shareID="'.$shareID.'";?>';
+        $shareFileInfo = fopen($otherUserPath.'/shareinfo.php'.'',"w");
+        fwrite($shareFileInfo, $shareFileData);
+        fclose($shareFileInfo);
+    }else{
+        echo "you are allready owner of this share";
+    }
+
+}
+function getSafeShareID(){
+    $shareID = $_GET["share"];
+    //remove escape characters
+    //validate path
+    if (strlen($shareID) >0){
+        if ($shareID[0] != "/"){
+            $shareID ="/".$shareID;
+        }
+    }else{
+        $shareID = "/none/";
+    }
+    $shareID = $shareID."/";
+    $shareID = explode("/", $shareID)[1];
+    $shareID = str_replace ("." , "" , $shareID);
+    
+    //new--
+    /*
+    $fullpath = str_replace ("\\.." , "" , $fullpath);
+    $fullpath = str_replace ("..\\" , "" , $fullpath);
+    $fullpath = str_replace ("/.." , "" , $fullpath);
+    $fullpath = str_replace ("../" , "" , $fullpath);
+     */
+    //-----
+
+    return $shareID;
+}
+function getSafeSharePath(){
+    $sharePath = $_GET["share"];
+    //remove escape characters
+    //validate path
+    if (strlen($sharePath) >0){
+        if ($sharePath[0] != "/"){
+            $sharePath ="/".$sharePath;
+        }
+    }else{
+        $sharePath = "/none/";
+    }
+    $shareID = explode("/", $sharePath)[1];
+    $shareID = str_replace ("." , "" , $shareID);
+
+    $sharePath =  substr($sharePath, strlen($shareID)+1);
+    
+    $sharePath = str_replace ("\\.." , "" , $sharePath);
+    $sharePath = str_replace ("..\\" , "" , $sharePath);
+    $sharePath = str_replace ("/.." , "" , $sharePath);
+    $sharePath = str_replace ("../" , "" , $sharePath);
+
+    
+    return $sharePath;
+    
+}
+function getSafeFullSharePath($datarootpath, $shareCreatorName, $shareID, $sharePath){
+    $shareFullPath = $datarootpath.'/users/'.$shareCreatorName.'/shares/'.$shareID.'/data/'.$sharePath;
+    return $shareFullPath;
+
+}
+function printUserInterfaceShareFileViewer($shareID, $user, $path, $fullpath, $datarootpath, $can_delete, $can_upload, $nichtgelisteteDatein, $ecad_php_version, $shareName, $shareID){
+    
+    //prints head of user interface
+    printUserHeader($user, $ecad_php_version);
+    
+    //print share name and id
+    echo 'share: '.$shareName.'&nbsp&nbsp&nbsp&nbsp( ID: '.$shareID.' )</br>';
+    
+    //prints new path display system
+    printUserPathForShare($shareID.$path);
+    
+    if(file_exists($fullpath.'/')){
+        //logs the file request
+        ecad_php_log($datarootpath,"INFO","shared folder request ".'['.$shareID.$path.']');
+        
+        //get files and sort
+        $files = scandir($fullpath.'/');
+        sort($files, SORT_NATURAL);
+        //counts howmany files are found
+        $datein = 0;
+        
+        //prints form header and buttons
+        printFileEditUploadDeleteCreateButtons($can_delete, $can_upload);
+        
+        //prints upload form
+        printUserFileUploadScript();
+        
+        foreach($files as $file){
+            //print files
+            //$datein++;
+            //include $fullpath.'/';
+            //if(include )
+            $datein = $datein + printFileAndInfoForShare($file , $nichtgelisteteDatein, $shareID.$path, $can_delete, $fullpath);
+        }
+        echo "\r\n".'</form>';
+        echo "</br>";
+        if($datein == 1){
+            echo $datein." Object";
+            //echo "no files";
+        }else{
+            echo $datein." Objects";
+        }
+    }else{
+        ecad_php_log($datarootpath,"INFO","folder/file not found ".'['.$path.']');
+        echo "</br> Folder/File not found";
+    }
+    echo "</body>";
+    echo "</html>";
+}
+
+function printFileAndInfoForShare($file , $nichtgelisteteDatein, $path, $can_delete, $fullpath){
+    if (in_array ( $file , $nichtgelisteteDatein )){
+        return 0;
+        //files that are not listed for users
+    }else{
+        echo "\r\n";
+        $file_in_html = str_replace(".","%2E",str_replace (" " , "%20" , $file));
+        //makes a checkbox if user can delete files
+        if($can_delete){ echo '<input type="checkbox" name='."'".'file_'.$file_in_html.''."'".' value="true"></input> ';}
+        
+        //writes the filesize of the given file in human readeble form
+        printFileSize($fullpath, $file);
+        
+        //path system for shown files and folders
+        $newpath = substr(curPageURL(), 0, strpos(curPageURL(),basename(__FILE__))).basename(__FILE__)."?share=".$path;
+        
+        echo '<a href="'.$newpath.$file.'/">'.$file."       ".'</a> </br>';
+    }
+    return 1;
+}
+function printUserPathForShare($path){
+    if ($path == '/'){
+        echo "path: ";
+        echo'<a href="'.'">root</a><a> /</a>';
+    }else{
+        $newpath = substr(curPageURL(), 0, strpos(curPageURL(),basename(__FILE__))).basename(__FILE__)."?share=".split('/',$path)[0].'/';
+        
+        echo "path: ";
+        $path_array = split('/',$path);
+        
+        echo'<a href="'.$newpath.'">root</a><a> /</a>';
+        
+        for ($path_part = 1; $path_part <= (count($path_array)-2); $path_part++) {
+            $newpath = $newpath.$path_array[$path_part].'/';
+            if ($path_part ==(count($path_array)-2)){
+                echo '<a> </a>'.'<a href="'.$newpath.'">'.$path_array[$path_part].'</a><a> /</a>';
+            }else{
+                echo '<a> </a>'.'<a href="'.$newpath.'">'.$path_array[$path_part].'</a><a> /</a>';
+            }
+        }
+    }
+    echo'</br>';
+}
+function createShareView(){
+    echo '<form method="POST" action="" style="margin-bottom: 0px;">';
+    echo '</br>share name: <input type="text" name="share_name" value=""></input></br>';
+    
+    echo '</br>users to share with:</br><textarea rows="10" cols="30" name="usersInShare"></textarea></br>';
+    echo 'can download: <input type="checkbox" name="can_download" value="can_delete" checked></br>';
+    echo 'can upload: <input type="checkbox" name="can_upload" value="can_upload"></br>';
+    echo 'can edit / delete: <input type="checkbox" name="can_delete" value="can_delete"></br>';
+    echo 'can add users: <input type="checkbox" name="can_addUsers" value="can_delete"></br>';
+    echo '<input name="createNewShareSubmit" value="create share" type="submit">';
+    echo '</form>';
+}
+
+function createNewShareSubmit($datarootpath, $user, $shareName, $usersToAdd, $shareCanUpload, $shareCanDelete, $shareCanDownload, $shareCanAddUsers){
+    //create share
+    $shareID = createNewShareFunction($datarootpath, $user, $shareName);
+    //get list of users to add to share
+    $usersToAdd = explode("\r\n", $usersToAdd);
+    //create users
+    foreach($usersToAdd as $userToAdd){
+        $toAddUser = getSafeString($userToAdd);
+        if ($toAddUser != ""){
+            //check if user exists
+            if(is_dir($datarootpath.'/users/'.$toAddUser)){
+                //add user to share
+                addUserToShareSubmit($datarootpath, $user, $shareID, $toAddUser, $shareCanUpload, $shareCanDelete, $shareCanDownload, $shareCanAddUsers);
+            }else{
+               echo 'can\'t add the user: '.$toAddUser.' (user doesnt exist)</br>';
+            }
+        }
+    }
+}
+
+function addUserToShareView($shareID){
+    echo '<form method="POST" action="" style="margin-bottom: 0px;">';
+    echo '<input name="shareToEdit" value="'.$shareID.'" type="hidden">';
+    
+    echo '</br>users to add to share:</br><textarea rows="10" cols="30" name="usersInShare"></textarea></br>';
+    echo 'can download: <input type="checkbox" name="can_download" value="can_delete" checked></br>';
+    echo 'can upload: <input type="checkbox" name="can_upload" value="can_upload"></br>';
+    echo 'can edit / delete: <input type="checkbox" name="can_delete" value="can_delete"></br>';
+    echo 'can add users: <input type="checkbox" name="can_addUsers" value="can_delete"></br></br>';
+    echo '<input name="addUsersToShareSubmit" value="add users to share" type="submit">';
+    echo '</form>';
+}
+function addUsersToShareSubmit($datarootpath, $user){
+    $shareID = getSafeString($_POST['shareToEdit']);
+    //get share information
+    include $datarootpath.'/users/'.$user.'/shares/'.$shareID.'/shareinfo.php';
+    //get user permissions
+    include$datarootpath.'/users/'.$shareCreatorName.'/shares/'.$shareID.'/users/'.$user.'userPermissions.php';
+    if(($shareCanAddUsers == 'true')||($user == $shareCreatorName) ){
+        $usersToAdd = $_POST['usersInShare'];
+        $shareCanUpload = $_POST[('can_upload')]  ? "true" : "false";
+        $shareCanDelete = $_POST[('can_delete')]  ? "true" : "false";
+        $shareCanDownload = $_POST[('can_download')]  ? "true" : "false";
+        $shareCanAddUsers = $_POST[('can_addUsers')]  ? "true" : "false";
+        $usersToAdd = explode("\r\n", $usersToAdd);
+        //create users
+        foreach($usersToAdd as $userToAdd){
+            $toAddUser = getSafeString($userToAdd);
+            if ($toAddUser != ""){
+                
+                //echo ";added user:".$toAddUser.";".$userToAdd."-";
+                if(is_dir($datarootpath.'/users/'.$toAddUser)){
+                    addUserToShareSubmit($datarootpath, $shareCreatorName, $shareID, $toAddUser, $shareCanUpload, $shareCanDelete, $shareCanDownload, $shareCanAddUsers);
+                }else{
+                    echo 'can\'t add the user: '.$toAddUser.' (user doesnt exist)</br>';
+                }
+            }
+        }
+    }else{
+        ecad_php_log($datarootpath,"WARNING","add user to share without permissions ".'[ID:'.$shareID.']');
+        echo 'you don\'t have permissions to do that!!!';
+    }
+    
+    
+
+    
+}
+function editUserInShareView($datarootpath, $user){
+    $shareID = getSafeString($_POST['shareToEdit']);
+    $shareUser = getSafeString($_POST['shareUser']);
+    //get share information
+    include $datarootpath.'/users/'.$user.'/shares/'.$shareID.'/shareinfo.php';
+    //get user permissions
+    include $datarootpath.'/users/'.$shareCreatorName.'/shares/'.$shareID.'/users/'.$shareUser.'/userPermissions.php';
+    
+    echo '<form method="POST" action="" style="margin-bottom: 0px;">';
+    echo '<input name="shareToEdit" value="'.$shareID.'" type="hidden">';
+    
+    echo '</br>users to edit:</br> <input type="text" name="shareUser" value="'.$shareUser.'" readonly></br>';
+    if($shareCanDownload == 'true'){
+        echo 'can download: <input type="checkbox" name="can_download" value="can_delete" checked></br>';
+    }else{
+        echo 'can download: <input type="checkbox" name="can_download" value="can_delete"></br>';
+    }
+    if($shareCanUpload == 'true'){
+        echo 'can upload: <input type="checkbox" name="can_upload" value="can_upload" checked></br>';
+    }else{
+        echo 'can upload: <input type="checkbox" name="can_upload" value="can_upload"></br>';
+    }
+    if($shareCanDelete == 'true'){
+        echo 'can edit / delete: <input type="checkbox" name="can_delete" value="can_delete" checked></br>';
+    }else{
+        echo 'can edit / delete: <input type="checkbox" name="can_delete" value="can_delete"></br>';
+    }
+    if($shareCanAddUsers == 'true'){
+        echo 'can add users: <input type="checkbox" name="can_addUsers" value="can_delete" checked></br>';
+    }else{
+        echo 'can add users: <input type="checkbox" name="can_addUsers" value="can_delete"></br>';
+    }
+
+    echo '<input name="editUserInShareSubmit" value="submit changes" type="submit"><input name="edit_share" value="abort" type="submit">';
+    echo '</form>';
+}
+function editUserInShareSubmit($datarootpath, $user){
+    $shareID = getSafeString($_POST['shareToEdit']);
+    $toAddUser = getSafeString($_POST['shareUser']);
+    $shareCanUpload = $_POST[('can_upload')]  ? "true" : "false";
+    $shareCanDelete = $_POST[('can_delete')]  ? "true" : "false";
+    $shareCanDownload = $_POST[('can_download')]  ? "true" : "false";
+    $shareCanAddUsers = $_POST[('can_addUsers')]  ? "true" : "false";
+    
+    $sharePath = $datarootpath.'/users/'.$user.'/shares/'.$shareID.'';
+    //get share info
+    include $sharePath.'/shareinfo.php';
+    //get user permisions
+    includesharePath.'/users/'.$user.'/userPermissions.php';
+    if(($shareCanAddUsers=="true")||($user == $shareCreatorName) ){
+        if( $toAddUser != $user){
+            //add or edit user in share
+            
+            //add user to share
+            mkdir($sharePath.'/users/'.$toAddUser.'/');
+            
+            $shareFileData = '<?php $shareCanUpload="'.$shareCanUpload.'";$shareCanDelete="'.$shareCanDelete.'";$shareCanDownload="'.$shareCanDownload.'";$shareCanAddUsers="'.$shareCanAddUsers.'";?>';
+            $shareFileInfo = fopen($sharePath.'/users/'.$toAddUser.'/userPermissions.php'.'',"w");
+            fwrite($shareFileInfo, $shareFileData);
+            fclose($shareFileInfo);
+            
+            //add share to other user
+            $otherUserPath = $datarootpath.'/users/'.$toAddUser.'/shares/'.$shareID.'';
+            mkdir($otherUserPath.'/');
+            
+            $shareFileData = '<?php $shareCreatorName="'.$shareCreatorName.'";$shareName="'.$shareName.'";$shareID="'.$shareID.'";?>';
+            $shareFileInfo = fopen($otherUserPath.'/shareinfo.php'.'',"w");
+            fwrite($shareFileInfo, $shareFileData);
+            fclose($shareFileInfo);
+        }else{
+            echo "you can't add yourself to the share!!!";
+        }
+    }else{
+        ecad_php_log($datarootpath,"WARNING“,“edit user in share without permissions ".'[ID:'.$shareID.']');
+        echo 'you dont have permissions  to do that!!!!';
+    }
+}
+
+function removeUserFromShareView($datarootpath, $user){
+    $shareID = getSafeString($_POST['shareToEdit']);
+    $shareUser = getSafeString($_POST['shareUser']);
+    
+    //get information about share
+    include $datarootpath.'/users/'.$user.'/shares/'.$shareID.'/shareinfo.php';
+    //get the permissions of the user
+    include $datarootpath.'/users/'.$shareCreatorName.'/shares/'.$shareID.'/users/'.$user.'/userPermissions.php';
+    //print interface
+    echo '<form method="POST" action="" style="margin-bottom: 0px;">';
+    echo '<input name="shareToEdit" value="'.$shareID.'" type="hidden">';
+    echo '<input name="shareUser" value="'.$shareUser.'" type="hidden">';
+    echo '</br>do you really want to remove the user: '.$shareUser.'?</br>from the share: '.$shareName.'</br>(ID: '.$shareID.')</br></br>';
+    echo '<input name="remove_user_in_share_Submit" value="remove user from share" type="submit"><input name="edit_share" value="abort" type="submit">';
+    echo '</form>';
+    
+    
+}
+function removeUserFromShareSubmit($datarootpath, $user){
+    $shareID = getSafeString($_POST['shareToEdit']);
+    $shareUser = getSafeString($_POST['shareUser']);
+    
+    //get information about share
+    include $datarootpath.'/users/'.$user.'/shares/'.$shareID.'/shareinfo.php';
+    //get the permissions of the user
+    include $datarootpath.'/users/'.$shareCreatorName.'/shares/'.$shareID.'/users/'.$user.'/userPermissions.php';
+    
+    if($shareCanAddUsers == 'true' || $user == $shareCreatorName){
+        if($shareUser != $shareCreatorName){
+            //remove user from share
+            removeUserFromShareFunction($datarootpath, $user, $shareCreatorName, $shareID, $shareUser);
+        }else{
+            echo 'you cant remove the owner of the share!!</br>';
+        }
+    }else{
+        ecad_php_log($datarootpath,"WARNING","remove user from share without permissions ".'[ID:'.$shareID.']');
+        echo 'you don\'t have permisions to remove users!!</br>';
+    }
+
+}
+
+function removeUserFromShareFunction($datarootpath, $user, $shareCreatorName, $shareID, $userToRemove){
+    //remove user from share
+    rrmdir($datarootpath.'/users/'.$shareCreatorName.'/shares/'.$shareID.'/users/'.$userToRemove.'/');
+    //remove share from user
+    rrmdir($datarootpath.'/users/'.$userToRemove.'/shares/'.$shareID.'/');
+}
+
+function deleteShareView($datarootpath, $user){
+    $shareID = getSafeString($_POST['shareToEdit']);
+    
+    include $datarootpath.'/users/'.$user.'/shares/'.$shareID.'/shareinfo.php';
+    
+    echo '<form method="POST" action="" style="margin-bottom: 0px;">';
+    echo '<input name="shareToEdit" value="'.$shareID.'" type="hidden">';
+    echo '</br>Do you really want to delete the share: '.$shareName.'</br>(ID: '.$shareID.')</br></br>';
+    echo '<input name="deleteShareSubmit" value="really delete share" type="submit">  <input name="edit_share" value="abort" type="submit">';
+    echo '</form>';
+    
+}
+
+function deleteShareSubmit($datarootpath, $user){
+    //get selected share
+    $shareID = getSafeString($_POST['shareToEdit']);
+    //get innformation about share
+    include $datarootpath.'/users/'.$user.'/shares/'.$shareID.'/shareinfo.php';
+    //get user permissions
+    include $datarootpath.'/users/'.$shareCreatorName.'/shares/'.$shareID.'/users/'.$user.'/userPermissions.php';
+    
+    //check if user has permissions or is owner
+    if($shareCreatorName == $user){
+        //remove all user from share
+        $files = scandir($datarootpath.'/users/'.$user.'/shares/'.$shareID.'/users/');
+        foreach($files as $file){
+            if($file != "." && $file != ".."){
+                //remove a user
+                removeUserFromShareFunction($datarootpath, $user, $shareCreatorName, $shareID, $file);
+            }
+        }
+        //delete share folder
+        rrmdir($datarootpath.'/users/'.$user.'/shares/'.$shareID);
+        
+        echo 'share deleted!</br>';
+    }else{
+        ecad_php_log($datarootpath,"WARNING","delete share without permissions ".'[ID:'.$shareID.']');
+        echo 'the share can only be delted by the owner!!!';
+    }
+}
+
+function countMyShares($datarootpath, $user){
+    $sharesPath = $datarootpath.'/users/'.$user.'/shares/';
+    $files = scandir($sharesPath);
+    $mySharesCounter = 0;
+    
+    foreach($files as $file){
+        if($file != "." && $file != ".."){
+            include $sharesPath.$file."/shareinfo.php";
+            //echo $sharesPath.$file."</br>";
+            if($shareCreatorName == $user){
+                $mySharesCounter++;
+            }else{
+            }
+        }
+    }
+    return $mySharesCounter;
+}
+
+
+?><?php
+//user panel----------------------------------------------------------------------------------------------------------------------------------------------------
+function showUserPanel($datarootpath, $user, $ecad_php_version){
+    echo $ecad_php_version." &nbsp&nbsp&nbsp    user: ".$user.' <span style="padding-left:30px"></span> <a href="index.php?action=logout">  logout </a></br>';
+    echo '</br><span style="padding-left:20px"></span><a href="index.php?path=" >my files</a></br>';
+    echo '</br><span style="padding-left:20px"></span><a href="index.php?share">shares</a></br>';
+    echo '</br><span style="padding-left:20px"></span><a href="index.php?page=/">my pages</a> (not implemented)</br>';
+    echo '</br><span style="padding-left:20px"></span><a href="index.php?myfavorites">my favorites</a> (not implemented)</br>';
+    echo '</br><span style="padding-left:20px"></span><a href="index.php?usersettings">user settings</a> (not implemented)</br>';
+}
 
 ?>
