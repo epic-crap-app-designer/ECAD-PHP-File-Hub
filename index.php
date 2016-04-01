@@ -2,8 +2,8 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP file hub v0.2.01m";
-    $ecad_php_version_number = "v0.2.01m";
+    $ecad_php_version ="ECAD PHP file hub v0.2.03";
+    $ecad_php_version_number = "v0.2.03";
     $ecad_php_version_id = 100;
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
@@ -305,6 +305,19 @@ if ($authentificated) {
                             if ( isset( $_POST['upload_single_file'] ) && (($shareCanUpload == 'true')||($user == $shareCreatorName)) ) {
                                 upload_single_file($datarootpath, $log_fileUpload, $fullSharePath, $sharepath, $maximalUploadSize, $maximalUploadSize);
                             }
+                            //upload multiple files if file is being uploaded
+                            if ( isset( $_POST['upload_multiple_file'] ) && $can_upload ) {
+                                upload_multiple_file($datarootpath, $log_fileUpload, $fullSharePath, $sharepath, $maximalUploadSize, $maximalUploadSize);
+                            }
+                            
+                            //download multiple files as zip archive for shares
+                            if ( isset( $_POST['download_multiple'] ) ){
+                                $show_user_interface = false;
+                                $result = download_multiple_file($datarootpath, $user, $nichtgelisteteDatein, $fullSharePath);
+                                if(!$result){
+                                    $show_user_interface = true;
+                                }
+                            }
                             
                             //-----------
 
@@ -386,10 +399,25 @@ if ($authentificated) {
                 if ( isset( $_POST['upload_single_file'] ) && $can_upload ) {
                     upload_single_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize);
                 }
+                //upload multiple files if file is being uploaded
+                if ( isset( $_POST['upload_multiple_file'] ) && $can_upload ) {
+                    upload_multiple_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize);
+                }
+                //download multiple files as zip archive
+                if ( isset( $_POST['download_multiple'] ) ){
+                    $show_user_interface = false;
+                    $result = download_multiple_file($datarootpath, $user, $nichtgelisteteDatein, $fullpath);
+                    
+                    if(!$result){
+                        $show_user_interface = true;
+                    }
+                }
+                
                 //show user interface if nothing else has happend
                 if($show_user_interface){
                     printUserInterfaceFileViewer($user, $path, $fullpath, $datarootpath, $can_delete, $can_upload, $nichtgelisteteDatein, $ecad_php_version);
                 }
+                
                 
                 //end of system for normal paths------------------------------------------------------------------------
             }
@@ -428,7 +456,13 @@ if ($authentificated) {
         
         return $text;
     }
-
+    function getSafeFileName($text){
+        
+        $text = preg_replace('/[^a-z0-9\.\-]/i', '_', $text);
+        
+        return $text;
+    }
+    
     
 //beginning of the functions --------------------------------------------------------------------------------------------------------------------------------------------------------------------
     ?><?php
@@ -603,7 +637,24 @@ function rrmdir($dir) {
             
             //prints upload form
             printUserFileUploadScript();
-            
+            //greater than one because of the . foder
+            if(count(array_diff($files, $nichtgelisteteDatein)) > 1){
+                //make select all files checkbox
+?>
+<input type="checkbox" name="action_toggleCheckboxSelection" value="true" onClick="toggle_file_checkboxes(this)"></input> </br>
+                
+<script language="JavaScript">
+function toggle_file_checkboxes(source) {
+    //checkboxes = document.getElementsByID('id_file_checkbox');
+    checkboxes = document.getElementsByClassName('id_file_checkbox');
+    for(var i=0, n=checkboxes.length;i<n;i++) {
+        checkboxes[i].checked = source.checked;
+    }
+}
+</script>
+
+<?php
+            }
             foreach($files as $file){
                 //print files
                 //$datein++;
@@ -629,8 +680,17 @@ function rrmdir($dir) {
 <div id="uploadFormDiv">
 
 Select a file to upload:
+<!--
+old single file uploader
 <input type="file" name="fileToUpload" id="fileToUpload">
 <input type="submit" value="Upload File" name="upload_single_file">
+<form action="" method="post" enctype="multipart/form-data">
+-->
+
+
+<input type="file" id="file" name="filesToUpload[]" multiple="multiple" />
+<input type="submit" value="Upload Files" name="upload_multiple_file" />
+
 </div>
 <script>
 document.getElementById("uploadFormDiv").style.visibility = 'hidden';
@@ -699,8 +759,9 @@ function showUploadFunction(){
     }
     function printFileEditUploadDeleteCreateButtons($can_delete, $can_upload){
         echo "\r\n".'<form method="POST" action="" enctype="multipart/form-data">';
-        if($can_delete){ echo '<input name="rename_FolderOrFile" value="rename" type="submit"> <input name="delete_FolderOrFile" value="delete" type="submit"> <input name="create_Folder" value="new folder" type="submit">';}
-        if($can_upload){ echo '<button type="button" onclick="showUploadFunction()">upload</button>';}
+        echo '<input name="download_multiple" value="download" type="submit">';
+        if($can_delete){ echo ' <input name="rename_FolderOrFile" value="rename" type="submit"> <input name="delete_FolderOrFile" value="delete" type="submit"> <input name="create_Folder" value="new folder" type="submit">';}
+        if($can_upload){ echo ' <button type="button" onclick="showUploadFunction()">upload</button>';}
     }
     function printFileAndInfo($file , $nichtgelisteteDatein, $path, $can_delete, $fullpath){
         if (in_array ( $file , $nichtgelisteteDatein )){
@@ -710,7 +771,8 @@ function showUploadFunction(){
             echo "\r\n";
             $file_in_html = str_replace(".","%2E",str_replace (" " , "%20" , $file));
             //makes a checkbox if user can delete files
-            if($can_delete){ echo '<input type="checkbox" name="file_'.$file_in_html.'" value="true"></input> ';}
+            //if($can_delete){ echo '<input type="checkbox" name="file_'.$file_in_html.'" value="true"></input> ';}
+            echo '<input type="checkbox" name="file_'.$file_in_html.'" value="true" class="id_file_checkbox"></input> ';
             
             //writes the filesize of the given file in human readeble form
             printFileSize($fullpath, $file);
@@ -726,6 +788,8 @@ function showUploadFunction(){
 ?><?php
     //user functions for (upload, download, create file, delete, change name) -----------------------------------------------------------------------------------------
     function upload_single_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize){
+        echo 'uploading single files is no longer supported!!';
+        /*
         ini_set ( 'post_max_size' , $maximalUploadSize );
         ini_set ( "upload_max_filesize" , $maximalUploadSize );
         //echo ini_get('post_max_size');
@@ -754,7 +818,184 @@ function showUploadFunction(){
                    }
             }
         }
+         */
     }
+    function upload_multiple_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize){
+        
+        //set php parameters
+        ini_set ( 'post_max_size' , $maximalUploadSize );
+        ini_set ( "upload_max_filesize" , $maximalUploadSize );
+        //-----
+        $count = 0;
+        foreach ($_FILES['filesToUpload']['name'] as $f => $name) {
+            if ($_FILES['filesToUpload']['error'][$f] == 4) {
+                echo "!!ERROR!! (upload error: 4)</br>";
+                continue; // Skip file if any error found
+            }
+            if ($_FILES['filesToUpload']['error'][$f] == 0) {
+                /*
+                if ($_FILES['filesToUpload']['size'][$f] > 0) {
+                    echo '!!ERROR!! File to large';
+                    continue; // Skip large files
+                }
+                 */
+                /*
+                if( ! in_array(pathinfo($name, PATHINFO_EXTENSION), $valid_formats) ){
+                    echo "!!ERROR!! $name is not a valid format";
+                    continue; // Skip invalid file formats
+                }
+                 */
+                if(false){}else{ // No error found! Move uploaded files
+                    //get safe file name
+                    $name = getSafeFileName($name);
+                    
+                    if(file_exists($fullpath.'/'.$name)){
+                        echo "A file with the same name allready exists ( $name )</br>";
+                    }
+                    else if(move_uploaded_file($_FILES["filesToUpload"]["tmp_name"][$f], $fullpath.'/'.$name)){
+                        echo "file: &nbsp&nbsp".basename($_FILES["fileToUpload"]["name"])."&nbsp&nbsp uploaded to: ".$path."</br>";
+                        $count++; // Number of successfully uploaded file
+                    }else{
+                        echo "!!ERROR!! there was a problem uplaoding the file: $name </br>";
+                    }
+                }
+            }
+        }
+        
+    }
+    
+    function download_multiple_file($datarootpath, $user, $nichtgelisteteDatein, $fullpath){
+        //get files of current folder
+        $files = scandir($fullpath.'/');
+        $zippingLog = array();
+        array_push($zippingLog, 'starting zipping');
+        //echo 'Preparing download . . . . ';
+        $downloadFiles = array();
+        $files_to_edit_counter = 0;
+        foreach($files as $file){
+            //echo "file: $file </br>";
+            if (in_array ( $file , $nichtgelisteteDatein )){
+                //echo "not downloading the file: $file </br>";
+            }else{
+                $file_in_html = str_replace(".","%2E",str_replace (" " , "%20" , $file));
+                $edit_file_if = (isset($_POST[('file_'.$file_in_html)]) && $_POST[('file_'.$file_in_html)]  ? "true" : "false");
+                if(isset($_POST[('file_'.$file_in_html)]) ){
+                     array_push($zippingLog, 'file: '.$file);
+                    //echo $file;
+                    array_push($downloadFiles, $file);
+                    $files_to_edit_counter++;
+                }
+            }
+        }
+        if($files_to_edit_counter > 0){
+
+            //$zipname = 'file.zip';
+            $zipname = 'File_Export '.date("Y-m-d.H-i-s.U").'.zip';
+            $zip = new ZipArchive();
+            $source = $datarootpath.'/'.$zipname;
+            if ($zip->open($datarootpath.'/'.$zipname, ZipArchive::CREATE)!==TRUE) {
+                array_push($zippingLog, "cannot open <$filename>");
+                exit("cannot open <$filename>\n");
+            }
+            
+            foreach($downloadFiles as $file){
+                
+                $source = $fullpath.'/'.$file;
+                //echo '</br></br>';
+                //$source = $fullpath;
+                $source = str_replace('\\', '/', realpath($source));
+                $source = str_replace('//', '/', realpath($source));
+                $source = str_replace('\\', '/', realpath($source));
+                
+                $fullpath = str_replace('\\', '/', realpath($fullpath));
+                $fullpath = str_replace('//', '/', realpath($fullpath));
+                $fullpath = str_replace('\\', '/', realpath($fullpath));
+                
+                array_push($zippingLog, 'source: '.$source);
+                //echo 'source: '.$source . '/'.'</br>';
+                array_push($zippingLog, 'fullpath: '.$fullpath);
+                //echo 'fullpath: '.$fullpath.'</br>';
+                //check if folder or file
+                if (is_dir($source) === true)
+                {
+                    
+                    $filesZIP = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source), RecursiveIteratorIterator::SELF_FIRST);
+                    
+                    
+                    foreach ($filesZIP as $fileZIP)
+                    {
+                        
+                        $fileZIP = str_replace('\\', '/', $fileZIP);
+                        $fileZIP = str_replace('//', '/', $fileZIP);
+                        
+                        //echo 'zipPath: '.str_replace($source . '/', '', $fileZIP . '/').'</br>';
+                        $fileZIP = realpath($fileZIP);
+                        
+                        $fileZIP = str_replace('\\', '/', $fileZIP);
+                        $fileZIP = str_replace('//', '/', $fileZIP);
+                        array_push($zippingLog, 'fileZIP: '.$fileZIP);
+                        //echo 'fileZIP: '.$fileZIP.'</br>';
+                        array_push($zippingLog, 'zipPath: '.str_replace($source, '', $fileZIP . '/'));
+                        //echo 'zipPath: '.str_replace($source, '', $fileZIP . '/').'</br>';
+                        
+                        
+                        
+                        // Ignore "." and ".." folders
+                        if( in_array(substr($fileZIP, strrpos($fileZIP, '/')+1), array('.', '..')) )
+                            continue;
+                        
+                        //$fileZIP = realpath($fileZIP);
+                        if (is_dir($fileZIP) === true)
+                        {
+                            //ausname für root directory
+                            if ($fileZIP != $fullpath){
+                                array_push($zippingLog, 'addingDIR: '.$fileZIP.'('.$file.str_replace($source , '', $fileZIP . '/').')');
+                                //echo 'addingDIR: '.$fileZIP.'('.$file.str_replace($source , '', $fileZIP . '/').')</br>';
+                                $zip->addEmptyDir($file.str_replace($source , '', $fileZIP . '/'));
+                            }
+
+                        }
+                        else if (is_file($fileZIP) === true)
+                        {
+                            array_push($zippingLog, 'addingFileInsideFolder: '.$fileZIP.'('.$file.str_replace($source , '', $fileZIP).')');
+                            //echo 'addingFileInsideFolder: '.$fileZIP.'('.$file.str_replace($source , '', $fileZIP).')</br>';
+                            $zip->addFromString($file.str_replace($source , '', $fileZIP), file_get_contents($fileZIP));
+                        }
+                    }
+                }
+                else
+                {
+                    array_push($zippingLog,'addingFile:'.$fileZIP);
+                    //echo 'addingFile:'.$fileZIP.'</br>';
+                    $zip->addFromString(basename($source), file_get_contents($source));
+                }
+            }
+            
+            
+            //}
+            //close zip
+            $zip->close();
+            //send the zip
+            header('Content-Type: application/zip');
+            header('Content-disposition: attachment; filename="'.$zipname.'"');
+            header('Content-Length: ' . filesize($datarootpath.'/'.$zipname));
+            
+            readfile($datarootpath.'/'.$zipname);
+            
+            ecad_php_log($datarootpath,"INFO","files downloaded (ZIP archive) ".'['.filesize($datarootpath.'/'.$zipname).'bytes]['.$zipname.']');
+            
+            //delete zip from server
+            unlink($datarootpath.'/'.$zipname);
+            
+            return true;
+            
+        }else{
+            $show_user_interface = true;
+            echo "no item selected! </br>";
+            return false;
+        }
+    }
+    
     function delete_FolderOrFile_submit($nichtgelisteteDatein, $fullpath){
         //get files of current folder
         $files = scandir($fullpath.'/');
@@ -1350,6 +1591,25 @@ function printUserInterfaceShareFileViewer($shareID, $user, $path, $fullpath, $d
         //prints upload form
         printUserFileUploadScript();
         
+        //check if there is a file in the folder that is not listed on not listed
+        if(count(array_diff($files, $nichtgelisteteDatein)) > 1){
+            //make select all files checkbox
+            ?>
+            <input type="checkbox" name="action_toggleCheckboxSelection" value="true" onClick="toggle_file_checkboxes(this)"></input> </br>
+            
+            <script language="JavaScript">
+            function toggle_file_checkboxes(source) {
+                //checkboxes = document.getElementsByID('id_file_checkbox');
+                checkboxes = document.getElementsByClassName('id_file_checkbox');
+                for(var i=0, n=checkboxes.length;i<n;i++) {
+                    checkboxes[i].checked = source.checked;
+                }
+            }
+            </script>
+            
+            <?php
+        }
+        
         foreach($files as $file){
             //print files
             //$datein++;
@@ -1381,7 +1641,7 @@ function printFileAndInfoForShare($file , $nichtgelisteteDatein, $path, $can_del
         echo "\r\n";
         $file_in_html = str_replace(".","%2E",str_replace (" " , "%20" , $file));
         //makes a checkbox if user can delete files
-        if($can_delete){ echo '<input type="checkbox" name='."'".'file_'.$file_in_html.''."'".' value="true"></input> ';}
+        if($can_delete){ echo '<input type="checkbox" name='."'".'file_'.$file_in_html.''."'".' value="true" class="id_file_checkbox"></input> ';}
         
         //writes the filesize of the given file in human readeble form
         printFileSize($fullpath, $file);
