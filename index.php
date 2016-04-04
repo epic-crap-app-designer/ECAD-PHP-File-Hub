@@ -2,8 +2,8 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP file hub v0.2.03";
-    $ecad_php_version_number = "v0.2.03";
+    $ecad_php_version ="ECAD PHP file hub v0.2.03b";
+    $ecad_php_version_number = "v0.2.03b";
     $ecad_php_version_id = 100;
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
@@ -924,7 +924,6 @@ function showUploadFunction(){
                     
                     foreach ($filesZIP as $fileZIP)
                     {
-                        
                         $fileZIP = str_replace('\\', '/', $fileZIP);
                         $fileZIP = str_replace('//', '/', $fileZIP);
                         
@@ -937,8 +936,6 @@ function showUploadFunction(){
                         //echo 'fileZIP: '.$fileZIP.'</br>';
                         array_push($zippingLog, 'zipPath: '.str_replace($source, '', $fileZIP . '/'));
                         //echo 'zipPath: '.str_replace($source, '', $fileZIP . '/').'</br>';
-                        
-                        
                         
                         // Ignore "." and ".." folders
                         if( in_array(substr($fileZIP, strrpos($fileZIP, '/')+1), array('.', '..')) )
@@ -953,7 +950,6 @@ function showUploadFunction(){
                                 //echo 'addingDIR: '.$fileZIP.'('.$file.str_replace($source , '', $fileZIP . '/').')</br>';
                                 $zip->addEmptyDir($file.str_replace($source , '', $fileZIP . '/'));
                             }
-
                         }
                         else if (is_file($fileZIP) === true)
                         {
@@ -971,15 +967,18 @@ function showUploadFunction(){
                 }
             }
             
-            
-            //}
             //close zip
             $zip->close();
-            //send the zip
+            
+            //clean output puffer
+            ob_end_clean();
+            
+            //set http header for download
             header('Content-Type: application/zip');
             header('Content-disposition: attachment; filename="'.$zipname.'"');
             header('Content-Length: ' . filesize($datarootpath.'/'.$zipname));
             
+            //send the zip
             readfile($datarootpath.'/'.$zipname);
             
             ecad_php_log($datarootpath,"INFO","files downloaded (ZIP archive) ".'['.filesize($datarootpath.'/'.$zipname).'bytes]['.$zipname.']');
