@@ -2,12 +2,15 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP file hub v0.2.03b";
-    $ecad_php_version_number = "v0.2.03b";
-    $ecad_php_version_id = 100;
+    $ecad_php_version ="ECAD PHP file hub v0.2.03c";
+    $ecad_php_version_number = "v0.2.03c";
+    $ecad_php_version_id = 104;
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
-    $maximalUploadSize = "70M"; //if changed needs also to be set in the .htaccess file!! (php_value upload_max_filesize 50M and php_value post_max_size 50M)
+    $maximalUploadSize = "50M";
+    //if changed needs also to be set in the .htaccess file!!
+    //sample: php_value upload_max_filesize 50M and php_value post_max_size 50M
+    //you need to enable AllowOverwritte all in httpd.conf or apache2.conf
     $showAdministratorPath = false;
     $userIsAdmin = false;
     $nichtgelisteteDatein = array("index.php", ".htaccess", ".", "..");
@@ -16,6 +19,11 @@
     //variables for compatiblety
     $canAccessSystemFolder = false;
     $log_fileUpload = true;
+    
+    //check if the upload size was too big
+    if( strpos(error_get_last()["message"], "exceeds the limit of") !== false){
+        echo "!ERROR! The upload exceeded the maximum upload size of the system! (maximum: ".ini_get("post_max_size").")</br>";
+    }
 
     //load config
     include "config.php";
@@ -401,6 +409,7 @@ if ($authentificated) {
                 }
                 //upload multiple files if file is being uploaded
                 if ( isset( $_POST['upload_multiple_file'] ) && $can_upload ) {
+                    echo "upload multi file";
                     upload_multiple_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize);
                 }
                 //download multiple files as zip archive
@@ -827,6 +836,8 @@ function showUploadFunction(){
         ini_set ( "upload_max_filesize" , $maximalUploadSize );
         //-----
         $count = 0;
+        $failedUploadCount = 0;
+        $totalUploadFileSizes = 0;
         foreach ($_FILES['filesToUpload']['name'] as $f => $name) {
             if ($_FILES['filesToUpload']['error'][$f] == 4) {
                 echo "!!ERROR!! (upload error: 4)</br>";
@@ -853,14 +864,30 @@ function showUploadFunction(){
                         echo "A file with the same name allready exists ( $name )</br>";
                     }
                     else if(move_uploaded_file($_FILES["filesToUpload"]["tmp_name"][$f], $fullpath.'/'.$name)){
-                        echo "file: &nbsp&nbsp".basename($_FILES["fileToUpload"]["name"])."&nbsp&nbsp uploaded to: ".$path."</br>";
+                        echo "file: &nbsp&nbsp".basename($name)."&nbsp&nbsp uploaded to: ".$path."</br>";
                         $count++; // Number of successfully uploaded file
+                        
+                        if($log_fileUpload){
+                            ecad_php_log($datarootpath,"INFO","file uploaded ".'['.$path.'/'.$name.']['.filesize($fullpath.'/'.$name).'bytes]');
+                            $totalUploadFileSizes += filesize($fullpath.'/'.$name);
+                        }
                     }else{
                         echo "!!ERROR!! there was a problem uplaoding the file: $name </br>";
+                        
+                        if($log_fileUpload){
+                            ecad_php_log($datarootpath,"ERROR","upload error!! (file not found in destination) ".'['.$path.'/'.$name.']['.filesize($fullpath.'/'.$name).'bytes]');
+                            $totalUploadFileSizes += filesize($fullpath.'/'.$name);
+                            $failedUploadCount++;
+                        }
                     }
                 }
             }
         }
+        //check if sucessfully uploaded
+        if($count > 0){
+            ecad_php_log($datarootpath,"INFO","Files uploaded: ".'['.$count.' files][failed: '.$failedUploadCount.'][total size: '.$totalUploadFileSizes.']');
+        }
+        
         
     }
     
