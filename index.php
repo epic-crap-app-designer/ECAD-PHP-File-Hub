@@ -2,8 +2,8 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP file hub v0.2.03c";
-    $ecad_php_version_number = "v0.2.03c";
+    $ecad_php_version ="ECAD PHP file hub v0.2.03e";
+    $ecad_php_version_number = "v0.2.03e";
     $ecad_php_version_id = 104;
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
@@ -1414,10 +1414,10 @@ function downloadLogFile($datarootpath){
                     $brokenShareList .= '<form method="POST" action="" style="margin-bottom: 0px;">Folder Name (ID): '.$file.'</form>';
                 }else if($shareCreatorName == $user){
                     $mySharesCounter++;
-                    $mySharesList .= '<form method="POST" action="" style="margin-bottom: 0px;">'.$shareName.'<span style="padding-left:20px"></span> (owner: '.$shareCreatorName.')<span style="padding-left:20px"></span><a href="index.php?share='.$shareID.'/">browse share</a><span style="padding-left:10px"></span><input name="mount_share" value="mount" type="submit" disabled><input name="edit_share" value="edit" type="submit"><input name="delete_share" value="delete" type="submit"><span style="padding-left:20px"></span> (shareID: '.$shareID.')<input name="shareToEdit" value="'.$shareID.'" type="hidden"></form>';
+                    $mySharesList .= '<form method="POST" action="" style="margin-bottom: 0px;">'.$shareName.'<span style="padding-left:20px"></span> (owner: '.$shareCreatorName.')<span style="padding-left:20px"></span><a href="index.php?share='.$shareID.'/">browse share</a><span style="padding-left:10px"></span><input name="edit_share" value="edit" type="submit"><input name="delete_share" value="delete" type="submit"><span style="padding-left:20px"></span> (shareID: '.$shareID.')<input name="shareToEdit" value="'.$shareID.'" type="hidden"></form>';
                 }else{
                     $otherSharesCounter++;
-                    $otherSharesList .= '<form method="POST" action="" style="margin-bottom: 0px;">'.$shareName.'<span style="padding-left:20px"></span> (owner: '.$shareCreatorName.')<span style="padding-left:20px"></span><a href="index.php?share='.$shareID.'/">browse share</a><span style="padding-left:10px"></span><input name="mount_share" value="mount" type="submit" disabled><span style="padding-left:20px"></span> (shareID: '.$shareID.')<input name="selectedShareToEdit" value="'.$shareID.'" type="hidden"></form>';
+                    $otherSharesList .= '<form method="POST" action="" style="margin-bottom: 0px;">'.$shareName.'<span style="padding-left:20px"></span> (owner: '.$shareCreatorName.')<span style="padding-left:20px"></span><a href="index.php?share='.$shareID.'/">browse share</a><span style="padding-left:10px"></span><span style="padding-left:20px"></span> (shareID: '.$shareID.')<input name="selectedShareToEdit" value="'.$shareID.'" type="hidden"></form>';
                     
                 }
                 //echo $shareName.'<span style="padding-left:20px"></span> (owner: '.$shareCreatorName.')<span style="padding-left:20px"></span><a href="index.php?share='.$shareID.'/">browse share</a><span style="padding-left:10px"></span><input name="mount_share" value="mount" type="submit"><span style="padding-left:20px"></span> (shareID: '.$shareID.')</br>';
@@ -1974,9 +1974,7 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
     echo $ecad_php_version." &nbsp&nbsp&nbsp    user: ".$user.' <span style="padding-left:30px"></span> <a href="index.php?action=logout">  logout </a></br>';
     echo '</br><span style="padding-left:20px"></span><a href="index.php?path=" >my files</a></br>';
     echo '</br><span style="padding-left:20px"></span><a href="index.php?share">shares</a></br>';
-    echo '</br><span style="padding-left:20px"></span><a href="index.php?page=/">my pages</a> (not implemented)</br>';
-    echo '</br><span style="padding-left:20px"></span><a href="index.php?myfavorites">my favorites</a> (not implemented)</br>';
-    echo '</br><span style="padding-left:20px"></span><a href="index.php?usersettings">user settings</a> (not implemented)</br>';
+    //echo '</br><span style="padding-left:20px"></span><a href="index.php?usersettings">user settings</a> (not implemented)</br>';
+    //echo '</br><span style="padding-left:20px"></span><a href="index.php?administration">administration panel</a> (not implemented)</br>';
 }
-
 ?>

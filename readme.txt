@@ -1,25 +1,32 @@
-﻿ECAD PHP fileviewer v0.2.03c Handbook
+
+
+
+
+
+
+
 
 Administrator: admin, admin
 
 First Steps:
-copy index.php, to where you want to use ECAD PHP fileviewer.
+Copy index.php, to where you want to use the ECAD PHP file hub.
 open it in your browser.
-The system will than install all needed configurations, and a standard user.
-
-The Folders and document a user can see are under /ECAD PHP fileviewer X data/users/user_name/data
-Upload your folders there so the user can access and download them
 
 The folder ECAD PHP fileviewer X data will be created, in it you can find the acces restiction file (.htaccess), the folder users and shares.
 
 To administrate login as admin admin. change your password!
 
-On the main page you can now login as user0 with the password admin.
-The accesseble files of the users are under /ECAD PHP fileviewer X data/users/user0/data.
+The folder ECAD PHP fileviewer X data will be created, in it you can find the acces restiction file (.htaccess), and the folders users and shares.
 
 The passwords that are saved, are the md5 sum of the password and the secret word „word“.
 
 changes:
+0.2.03e
+stopped development
+
+0.2.03d
+removed the my pages button as it will later be implemented in a new project.
+
 0.2.03c
 logging for multiple files upload added
 implemented giving error when post size has exceeded system limit
@@ -130,3 +137,5 @@ sets filesze in header
 sessin_start removed
 path has now links to the folders
 https support added
+v0.1.03e
+mount button removed
