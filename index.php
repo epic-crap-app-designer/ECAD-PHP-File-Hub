@@ -2,8 +2,8 @@
     //change in the folowing only in the config.php file!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP file hub v0.2.03e";
-    $ecad_php_version_number = "v0.2.03e";
+    $ecad_php_version ="ECAD PHP file hub v0.2.03e-php7";
+    $ecad_php_version_number = "v0.2.03e-php7";
     $ecad_php_version_id = 104;
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
@@ -18,6 +18,7 @@
     
     //variables for compatiblety
     $canAccessSystemFolder = false;
+    
     $log_fileUpload = true;
     
     //check if the upload size was too big
@@ -41,7 +42,7 @@
     
     //check if login cockie exists on host
     if ($_COOKIE['ECAD_PHP_fileviewer_login']) {
-        list($c_username,$cookie_hash) = split(',',$_COOKIE['ECAD_PHP_fileviewer_login']);
+        list($c_username,$cookie_hash) = explode(',',$_COOKIE['ECAD_PHP_fileviewer_login']);
         //verify if user exists
         if(file_exists($datarootpath."/users/".$c_username)){
             //load user information
@@ -737,7 +738,7 @@ function showUploadFunction(){
             $newpath = substr(curPageURL(), 0, strpos(curPageURL(),basename(__FILE__))).basename(__FILE__)."?path=/";
             
             echo "path: ";
-            $path_array = split('/',$path);
+            $path_array = explode('/',$path);
             
             echo'<a href="'.$newpath.'">root</a><a> /</a>';
             
@@ -796,44 +797,44 @@ function showUploadFunction(){
     //end of User interface Printer -----------------------------------------------------------------------------------------------------------------------------------
 ?><?php
     //user functions for (upload, download, create file, delete, change name) -----------------------------------------------------------------------------------------
-    function upload_single_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize){
+    function upload_single_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $T_maximalUploadSize){
         echo 'uploading single files is no longer supported!!';
         /*
-        ini_set ( 'post_max_size' , $maximalUploadSize );
-        ini_set ( "upload_max_filesize" , $maximalUploadSize );
-        //echo ini_get('post_max_size');
-        $target_dir = $fullpath;//"uploads/";
-        //echo $target_dir;
-        if(isset($_POST["upload_single_file"])) {
-            $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
-            if (file_exists($target_file)) {
-                echo "A file with the same name allready exists</br>";
-            }else{
-                //echo $target_file;
-                //echo basename($_FILES["fileToUpload"]["tmp_name"]);
-                move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file);
-                if(file_exists($target_file)){
-                    //file sucessfully uploaded
-                   echo "file: &nbsp&nbsp".basename($_FILES["fileToUpload"]["name"])."&nbsp&nbsp uploaded to: ".$path."</br>";
-                    if($log_fileUpload){
-                        ecad_php_log($datarootpath,"INFO","file uploaded ".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
-                    }
-                   }else{
-                       //file upload couldnt be completed
-                   echo "!!ERROR!! there was a problem uplaoding the file!!!!</br>";
-                       if($log_fileUpload){
-                           ecad_php_log($datarootpath,"ERROR","upload error!! (file not found in destination) ".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
-                       }
-                   }
-            }
-        }
+         ini_set ( 'post_max_size' , $maximalUploadSize );
+         ini_set ( "upload_max_filesize" , $maximalUploadSize );
+         //echo ini_get('post_max_size');
+         $target_dir = $fullpath;//"uploads/";
+         //echo $target_dir;
+         if(isset($_POST["upload_single_file"])) {
+         $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
+         if (file_exists($target_file)) {
+         echo "A file with the same name allready exists</br>";
+         }else{
+         //echo $target_file;
+         //echo basename($_FILES["fileToUpload"]["tmp_name"]);
+         move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file);
+         if(file_exists($target_file)){
+         //file sucessfully uploaded
+         echo "file: &nbsp&nbsp".basename($_FILES["fileToUpload"]["name"])."&nbsp&nbsp uploaded to: ".$path."</br>";
+         if($log_fileUpload){
+         ecad_php_log($datarootpath,"INFO","file uploaded ".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
+         }
+         }else{
+         //file upload couldnt be completed
+         echo "!!ERROR!! there was a problem uplaoding the file!!!!</br>";
+         if($log_fileUpload){
+         ecad_php_log($datarootpath,"ERROR","upload error!! (file not found in destination) ".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
+         }
+         }
+         }
+         }
          */
     }
-    function upload_multiple_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize){
+    function upload_multiple_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $T_maximalUploadSize){
         
         //set php parameters
-        ini_set ( 'post_max_size' , $maximalUploadSize );
-        ini_set ( "upload_max_filesize" , $maximalUploadSize );
+        ini_set ( 'post_max_size' , $T_maximalUploadSize );
+        ini_set ( "upload_max_filesize" , $T_maximalUploadSize );
         //-----
         $count = 0;
         $failedUploadCount = 0;
@@ -1590,20 +1591,20 @@ function getSafeFullSharePath($datarootpath, $shareCreatorName, $shareID, $share
     return $shareFullPath;
 
 }
-function printUserInterfaceShareFileViewer($shareID, $user, $path, $fullpath, $datarootpath, $can_delete, $can_upload, $nichtgelisteteDatein, $ecad_php_version, $shareName, $shareID){
+function printUserInterfaceShareFileViewer($shareID, $user, $path, $fullpath, $datarootpath, $can_delete, $can_upload, $nichtgelisteteDatein, $ecad_php_version, $shareName, $T_shareID){
     
     //prints head of user interface
     printUserHeader($user, $ecad_php_version);
     
     //print share name and id
-    echo 'share: '.$shareName.'&nbsp&nbsp&nbsp&nbsp( ID: '.$shareID.' )</br>';
+    echo 'share: '.$shareName.'&nbsp&nbsp&nbsp&nbsp( ID: '.$T_shareID.' )</br>';
     
     //prints new path display system
     printUserPathForShare($shareID.$path);
     
     if(file_exists($fullpath.'/')){
         //logs the file request
-        ecad_php_log($datarootpath,"INFO","shared folder request ".'['.$shareID.$path.']');
+        ecad_php_log($datarootpath,"INFO","shared folder request ".'['.$T_shareID.$path.']');
         
         //get files and sort
         $files = scandir($fullpath.'/');
@@ -1684,10 +1685,10 @@ function printUserPathForShare($path){
         echo "path: ";
         echo'<a href="'.'">root</a><a> /</a>';
     }else{
-        $newpath = substr(curPageURL(), 0, strpos(curPageURL(),basename(__FILE__))).basename(__FILE__)."?share=".split('/',$path)[0].'/';
+        $newpath = substr(curPageURL(), 0, strpos(curPageURL(),basename(__FILE__))).basename(__FILE__)."?share=".explode('/',$path)[0].'/';
         
         echo "path: ";
-        $path_array = split('/',$path);
+        $path_array = explode('/',$path);
         
         echo'<a href="'.$newpath.'">root</a><a> /</a>';
         
