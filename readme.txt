@@ -1,4 +1,4 @@
-ECAD PHP fileviewer v0.2.03e Handbook
+﻿ECAD PHP fileviewer v0.2.03g Handbook
 
 
 Attention!!
@@ -21,11 +21,27 @@ Test user: usr:user0 pw:admin
 
 The folder ECAD PHP fileviewer X data will be created, in it you can find the acces restiction file (.htaccess), and the folders users and shares.
 
-The passwords that are saved, are the md5 sum of the password and the secret word „word“.
+The passwords that are saved, are the md5 sum of the password and the secret word "word".
+
+
+
+
+
+Extended Configuration:
+
+As default when uploading a file all special characters are replaced with "_". You can allow all characters by setting $allowAllCharactersInObjectNames to true inside the config.php file. (if you have used an older version prior to 0.2.03g you may have to add the line to the file)
+
+
+
 
 changes:
+
+0.2.03g
+added the option to allow all characters in a file name (may cause some problems with older operating systems and older versions of php or apache)
+
 0.2.03e-php7 compatible
 made the program compatible with php7
+
 
 0.2.03e
 stopped development

@@ -1,16 +1,21 @@
 <?php
-    //change in the folowing only in the config.php file!!!
+    //change in the folowing only in the config.php file by copying them there and changing the values, or else you lose your configuration when you update!!!
     $debug = false;
     $secret_word = "word";
-    $ecad_php_version ="ECAD PHP file hub v0.2.03e-php7";
-    $ecad_php_version_number = "v0.2.03e-php7";
-    $ecad_php_version_id = 104;
+    $ecad_php_version ="ECAD PHP file hub v0.2.03g";
+    $ecad_php_version_number = "v0.2.03g";
+    $ecad_php_version_id = 109;
     installifneeded($secret_word, $ecad_php_version_number);
     $show_ecad_php_version_on_title = true;
+    
+    $allowAllCharactersInObjectNames= false;
+    //if set to true will allow all characters except except for certain. if left on false will only allow the folowing: a-z0-9.-
+    
     $maximalUploadSize = "50M";
     //if changed needs also to be set in the .htaccess file!!
     //sample: php_value upload_max_filesize 50M and php_value post_max_size 50M
     //you need to enable AllowOverwritte all in httpd.conf or apache2.conf
+    
     $showAdministratorPath = false;
     $userIsAdmin = false;
     $nichtgelisteteDatein = array("index.php", ".htaccess", ".", "..");
@@ -18,7 +23,6 @@
     
     //variables for compatiblety
     $canAccessSystemFolder = false;
-    
     $log_fileUpload = true;
     
     //check if the upload size was too big
@@ -315,7 +319,7 @@ if ($authentificated) {
                                 upload_single_file($datarootpath, $log_fileUpload, $fullSharePath, $sharepath, $maximalUploadSize, $maximalUploadSize);
                             }
                             //upload multiple files if file is being uploaded
-                            if ( isset( $_POST['upload_multiple_file'] ) && $can_upload ) {
+                            if ( isset( $_POST['upload_multiple_file'] ) && (($shareCanUpload == 'true')||($user == $shareCreatorName)) ) {
                                 upload_multiple_file($datarootpath, $log_fileUpload, $fullSharePath, $sharepath, $maximalUploadSize, $maximalUploadSize);
                             }
                             
@@ -410,7 +414,7 @@ if ($authentificated) {
                 }
                 //upload multiple files if file is being uploaded
                 if ( isset( $_POST['upload_multiple_file'] ) && $can_upload ) {
-                    echo "upload multi file";
+                    echo "uploading multiple files: ";
                     upload_multiple_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize);
                 }
                 //download multiple files as zip archive
@@ -460,17 +464,41 @@ if ($authentificated) {
     }
 }
     //unsorted functions-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    function getSafeString($text){
+    function getSafeString($str){
+        global $allowAllCharactersInObjectNames;
         
-        $text = preg_replace('/[^a-z0-9]/i', '_', $text);
+        if($allowAllCharactersInObjectNames){
+            $str = strip_tags($str);
+            $str = preg_replace('/[\r\n\t ]+/', ' ', $str);
+            $str = preg_replace('/[\"\*\/\:\<\>\?\'\|]+/', ' ', $str);
+            $str = strtolower($str);
+            $str = html_entity_decode( $str, ENT_QUOTES, "utf-8" );
+            $str = htmlentities($str, ENT_QUOTES, "utf-8");
+            $str = preg_replace("/(&)([a-z])([a-z]+;)/i", '$2', $str);
+        }else{
+            $str = preg_replace('/[^a-z0-9]/i', '_', $str);
+        }
         
-        return $text;
+        
+        return $str;
+
     }
-    function getSafeFileName($text){
+    function getSafeFileName($str){
+        global $allowAllCharactersInObjectNames;
+
+        if($allowAllCharactersInObjectNames){
+            $str = strip_tags($str);
+            $str = preg_replace('/[\r\n\t ]+/', ' ', $str);
+            $str = preg_replace('/[\"\*\/\:\<\>\?\'\|]+/', ' ', $str);
+            $str = strtolower($str);
+            $str = html_entity_decode( $str, ENT_QUOTES, "utf-8" );
+            $str = htmlentities($str, ENT_QUOTES, "utf-8");
+            $str = preg_replace("/(&)([a-z])([a-z]+;)/i", '$2', $str);
+        }else{
+            $str = preg_replace('/[^a-z0-9\.\-]/i', '_', $str);
+        }
         
-        $text = preg_replace('/[^a-z0-9\.\-]/i', '_', $text);
-        
-        return $text;
+        return $str;
     }
     
     
@@ -507,7 +535,7 @@ function installifneeded($secret_word, $ecad_php_version_number) {
         $dataFolderName = '/ECAD PHP file hub data';
         //ecad php config file
         $ecadphpconfigfile = fopen("config.php", "w");
-        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.$dataFolderName."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'$log_fileUpload=true;'."\r\n".'?>';
+        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.$dataFolderName."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'$log_fileUpload=true;'."\r\n".'$allowAllCharactersInObjectNames=false;'."\r\n".'?>';
 fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
 fclose($ecadphpconfigfile);
 //ecad php data folder
@@ -1067,7 +1095,7 @@ function showUploadFunction(){
                 
                 if(isset($_POST[('file_'.$file_in_html)]) ){
                     
-                    echo "".'<input type="text" name="'.'file_'.$file_in_html.'" value="'.$file.'"></input>'.'<br/>';
+                    echo "".'<input type="text" name="'.'file_'.$file_in_html.'" value="'.$file.'" style="display: none"></input>'.$file.'<br/>';
                     $files_to_edit_counter++;
                 }
             }
