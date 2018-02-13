@@ -1,11 +1,15 @@
 <?php
     //change in the folowing only in the config.php file by copying them there and changing the values, or else you lose your configuration when you update!!!
     $debug = false;
-    $secret_word = "word";
-    $ecad_php_version ="ECAD PHP file hub v0.2.03g";
-    $ecad_php_version_number = "v0.2.03g";
-    $ecad_php_version_id = 109;
-    installifneeded($secret_word, $ecad_php_version_number);
+    $ecad_php_version ="ECAD PHP file hub v0.2.04a";
+    $ecad_php_version_number = "v0.2.04a";
+    $ecad_php_version_id = 116;
+    
+    //install if not installed
+    installifneeded($ecad_php_version_number,$ecad_php_version_id);
+    
+
+    
     $show_ecad_php_version_on_title = true;
     
     $allowAllCharactersInObjectNames= false;
@@ -32,6 +36,18 @@
 
     //load config
     include "config.php";
+    
+    
+    //execute scripted update
+    if(file_exists('update_parameters.php')){
+        include 'update_parameters.php';
+        execute_update_parameter($datarootpath);
+        ecad_php_log($datarootpath,"INFO","update parameters have been executed ");
+        unlink('update_parameters.php');
+    }
+    
+
+    
     
     //1-ignores errors 2-shows errors
     error_reporting(1);
@@ -123,12 +139,15 @@ if ($authentificated) {
         //creates a new user
         if ( isset( $_POST['create_user_submit'] ) ) {
             if($_POST['username'] != ""){
-                create_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),$_POST['allowed_shares']);
+                $username = $_POST['username'];
+                create_user($username,$datarootpath);
+                edit_user_submit($datarootpath);
+                
             }
         }
         //edits a user
         if ( isset( $_POST['edit_user_submit'] ) ) {
-            edit_user_submit($datarootpath, $secret_word);
+            edit_user_submit($datarootpath);
         }
         //closes the session of a given user
         if ( isset( $_POST['logout_user'] ) ) {
@@ -442,16 +461,18 @@ if ($authentificated) {
 }else{
     //no valid cockie found
     //login system--------------------------------------------------
-    $user = $_POST['user'];
+    $user = getSafeFileName($_POST['user']);
     $pass = $_POST['pass'];
     
     $loginaccepted = false;
-    if(file_exists($datarootpath."/users/".$user)){
-        include $datarootpath."/users/".$user."/userconfig.php";
-        if(md5($pass.$secret_word) == $userpasswordHash){
-            $loginaccepted = true;
+    if(isset($_POST['user'])){
+        if(file_exists($datarootpath."/users/".$user)){
+            include $datarootpath."/users/".$user."/userconfig.php";
+            if(password_verify($pass , $userpasswordHash ))
+                $loginaccepted = true;
         }
     }
+    
     if($loginaccepted && $_POST['user'] != null)
     {
         //handel when login sucessfull
@@ -476,29 +497,14 @@ if ($authentificated) {
             $str = htmlentities($str, ENT_QUOTES, "utf-8");
             $str = preg_replace("/(&)([a-z])([a-z]+;)/i", '$2', $str);
         }else{
-            $str = preg_replace('/[^a-z0-9]/i', '_', $str);
+            $str = preg_replace('/[^a-z0-9\.\-]/i', '_', $str);
         }
-        
         
         return $str;
 
     }
     function getSafeFileName($str){
-        global $allowAllCharactersInObjectNames;
-
-        if($allowAllCharactersInObjectNames){
-            $str = strip_tags($str);
-            $str = preg_replace('/[\r\n\t ]+/', ' ', $str);
-            $str = preg_replace('/[\"\*\/\:\<\>\?\'\|]+/', ' ', $str);
-            $str = strtolower($str);
-            $str = html_entity_decode( $str, ENT_QUOTES, "utf-8" );
-            $str = htmlentities($str, ENT_QUOTES, "utf-8");
-            $str = preg_replace("/(&)([a-z])([a-z]+;)/i", '$2', $str);
-        }else{
-            $str = preg_replace('/[^a-z0-9\.\-]/i', '_', $str);
-        }
-        
-        return $str;
+        return getSafeString($str);
     }
     
     
@@ -529,13 +535,13 @@ function makeDownloadHead($file, $type, $filename) {
 
 }
 ?><?php
-function installifneeded($secret_word, $ecad_php_version_number) {
+function installifneeded($ecad_php_version_number,$ecad_php_version_id) {
         //$secret_word = "word";
     if(!file_exists("config.php")){
         $dataFolderName = '/ECAD PHP file hub data';
         //ecad php config file
         $ecadphpconfigfile = fopen("config.php", "w");
-        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.$dataFolderName."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'$log_fileUpload=true;'."\r\n".'$allowAllCharactersInObjectNames=false;'."\r\n".'?>';
+        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.$dataFolderName."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'.'$firstInstallationID='."'".$ecad_php_version_id."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'$log_fileUpload=true;'."\r\n".'$allowAllCharactersInObjectNames=false;'."\r\n".'?>';
 fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
 fclose($ecadphpconfigfile);
 //ecad php data folder
@@ -543,19 +549,23 @@ mkdir('.'.$dataFolderName.'/shares', 0777, true);
 mkdir('.'.$dataFolderName.'/pages', 0777, true);
 mkdir('.'.$dataFolderName.'/users', 0777, true);
 
+
+
+
 //create user0
-create_user("user0","admin",'.'.$dataFolderName.'/',$secret_word, "false", "false","0");
+create_user("user0",'.'.$dataFolderName.'/');
+//configure user
+edit_user('.'.$dataFolderName, "user0", "admin", "false", "", "false", "false", "", "false", "false", "0","false","false","false");
 //create user0 test folder
 mkdir('.'.$dataFolderName.'/users/user0/data/test', 0777, true);
 
 
 //create admin
-create_user("admin","admin",'.'.$dataFolderName.'/',$secret_word, "true", "true","0");
+create_user("admin",'.'.$dataFolderName.'/');
+//configure user
+edit_user('.'.$dataFolderName, "admin", "admin", "false", "", "false", "false", "", "false", "false", "0","false","false","false");
 //make changes for admin
-$ecad_php_user_config_file = fopen('.'.$dataFolderName.'/users/admin/userconfig.php', "w");
-$user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5("admin".$secret_word)."'".';'."\r\n".'$userIsAdmin= true;'."\r\n".'$can_upload= true;'."\r\n".'$can_delete= true;'."\r\n".'$canAccessSystemFolder= true;'.'$amountOfAllowedShares=0;'.'?>';
-fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-fclose($ecad_php_user_config_file);
+file_put_contents('.'.$dataFolderName.'/users/admin/userconfig.php','<?php'."\r\n".'$userIsAdmin= true;'."\r\n".'$canAccessSystemFolder= true;'.'?>',FILE_APPEND);
 
 
 //configurate htaccess
@@ -565,7 +575,8 @@ fwrite($ecad_php_htaccess_file, $ecad_php_htaccess_file_Standard);
 fclose($ecad_php_htaccess_file);
 
 //config htaccess in root folder
-file_put_contents(".htaccess","\r\nphp_value upload_max_filesize 50M\r\nphp_value post_max_size 50M",FILE_APPEND);
+//TODO
+//file_put_contents(".htaccess","\r\nphp_value upload_max_filesize 50M\r\nphp_value post_max_size 50M",FILE_APPEND);
 
 ecad_php_log(__DIR__.''.$dataFolderName.'',"INFO","ECAD PHP fileviewer successfully installed");
     }
@@ -587,7 +598,11 @@ function rrmdir($dir) {
     } 
 }
 ?><?php
-    function create_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete,$amountOfAllowedShares){
+    function create_user($user,$ECAD_PHP_fileviewer_X_data_folder){
+        
+        $toCreateUsername = getSafeString($user);
+        //this function only creates the folder and file structure of the user. use edit_user to configure the user.
+        
         ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user created ".'['.$toCreateUsername.']');
         //create user folders
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername);
@@ -595,9 +610,11 @@ function rrmdir($dir) {
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/downloadpreperation');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
-        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder=false;'.'$amountOfAllowedShares='.$amountOfAllowedShares.';?>';
-        fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-        fclose($ecad_php_user_config_file);
+        $user_config_file_Standard = '<?php ?>';
+    fwrite($ecad_php_user_config_file, $user_config_file_Standard);
+    fclose($ecad_php_user_config_file);
+
+
         //create user cockie file
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/login.php', "w");
         $user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
@@ -610,29 +627,50 @@ function rrmdir($dir) {
 
     }
 ?><?php
-    function edit_user($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete,$canAccessSystemFolder,$amountOfAllowedShares){
-        ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user edited ".'['.$toCreateUsername.']');
-        //create user
-        $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
-        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".md5($toCreateUserPassword.$secret_word)."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".'$amountOfAllowedShares='.$amountOfAllowedShares.";\r\n".'?>';
-        fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-        fclose($ecad_php_user_config_file);
-        //create user cockie file
-        $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/login.php', "w");
-        $user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
-        fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-        fclose($ecad_php_user_config_file);
+function edit_user($datarootpath, $username, $new_password, $new_can_change_password, $new_email, $new_can_reset_password, $new_can_change_email, $new_re_routed_user_path, $new_can_upload, $new_can_delete, $new_amountOfAllowedShares,$new_can_use_short_share,$new_can_create_public_shares,$new_can_use_quick_login){
+    
+    ecad_php_log($datarootpath,"INFO","user edited ".'['.$username.']');
+    //set vaues for if they arent set in userconfig.php
+    $canAccessSystemFolder = false;
+    $userIsAdmin = false;
+    include $datarootpath."/users/".$username."/userconfig.php";
+    
+    $canAccessSystemFolder = (isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false");
+    $userIsAdmin= (isset($userIsAdmin) && $userIsAdmin ? "true" : "false");
+    
+    if ($new_password ==""){
+        //keep password
+    }else{
+        //change password
+        $userpasswordHash = password_hash($new_password, PASSWORD_DEFAULT);
+        //reset user cockie file
+        $sessionFile = fopen($datarootpath.'/users/'.$username.'/login.php', "w");
+        $sessionFileStandard = '<?php $acceptableuserLoginCockies = "-"; ?>';
+        fwrite($sessionFile, $sessionFileStandard);
+        fclose($sessionFile);
+    }
 
-}
-?><?php
-    function edit_user_keep_password($toCreateUsername,$toCreateUserPassword,$ECAD_PHP_fileviewer_X_data_folder,$secret_word,$toeditUser_can_upload,$toeditUser_can_delete,$canAccessSystemFolder,$amountOfAllowedShares){
-        ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","user edited (password kept) ".'['.$toCreateUsername.']');
-        //create user
-        $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
-        $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$toCreateUserPassword."'".';'."\r\n".'$userIsAdmin= false;'."\r\n".'$can_upload='.$toeditUser_can_upload.";\r\n".'$can_delete='.$toeditUser_can_delete.";\r\n".'$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".'$amountOfAllowedShares='.$amountOfAllowedShares.";\r\n".'?>';
-        fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-        fclose($ecad_php_user_config_file);
+    
+    $ecad_php_user_config_file = fopen($datarootpath.'/users/'.$username.'/userconfig.php', "w");
+    
+    $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$userpasswordHash."'".';'."\r\n".'$userIsAdmin= '.$userIsAdmin.";\r\n".'$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".
+    '$can_change_password='.$new_can_change_password.";\r\n".
+    '$email='."'".$new_email."'".";\r\n".
+    '$can_reset_password='.$new_can_reset_password.";\r\n".
+    '$can_change_email='.$new_can_change_email.";\r\n".
+    '$re_routed_user_path='."'".$new_re_routed_user_path."'".";\r\n".
+    '$can_upload='.$new_can_upload.";\r\n".
+    '$can_delete='.$new_can_delete.";\r\n".
+    '$amountOfAllowedShares='.$new_amountOfAllowedShares.";\r\n".
+    '$can_use_short_share='.$new_can_use_short_share.";\r\n".
+    '$can_create_public_shares='.$new_can_create_public_shares.";\r\n".
+    '$can_use_quick_login='.$new_can_use_quick_login.";\r\n".
+    '?>';
+    fwrite($ecad_php_user_config_file, $user_config_file_Standard);
+    fclose($ecad_php_user_config_file);
 
+    
+    
 }
 ?><?php
     //ecad_php_log($datarootpath,"TYPE","MESSAGE");
@@ -648,7 +686,7 @@ function rrmdir($dir) {
         //get time
         $current_time = date("Y.m.d-H.i.s",time());
         $log_text = '['.$current_time.']'.'['.$type.']'.'['.$client_Address.']'.'[cockie: '.$user_cockie.'] '.$log_message."\r\n";
-        file_put_contents ($ECAD_PHP_fileviewer_X_data_folder."/ecadPHPLog.log",$log_text,FILE_APPEND);
+        file_put_contents($ECAD_PHP_fileviewer_X_data_folder."/ecadPHPLog.log",$log_text,FILE_APPEND);
     }
 ?><?php
     //User interface Printer -----------------------------------------------------------------------------------------------------------------------------------
@@ -825,39 +863,6 @@ function showUploadFunction(){
     //end of User interface Printer -----------------------------------------------------------------------------------------------------------------------------------
 ?><?php
     //user functions for (upload, download, create file, delete, change name) -----------------------------------------------------------------------------------------
-    function upload_single_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $T_maximalUploadSize){
-        echo 'uploading single files is no longer supported!!';
-        /*
-         ini_set ( 'post_max_size' , $maximalUploadSize );
-         ini_set ( "upload_max_filesize" , $maximalUploadSize );
-         //echo ini_get('post_max_size');
-         $target_dir = $fullpath;//"uploads/";
-         //echo $target_dir;
-         if(isset($_POST["upload_single_file"])) {
-         $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
-         if (file_exists($target_file)) {
-         echo "A file with the same name allready exists</br>";
-         }else{
-         //echo $target_file;
-         //echo basename($_FILES["fileToUpload"]["tmp_name"]);
-         move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file);
-         if(file_exists($target_file)){
-         //file sucessfully uploaded
-         echo "file: &nbsp&nbsp".basename($_FILES["fileToUpload"]["name"])."&nbsp&nbsp uploaded to: ".$path."</br>";
-         if($log_fileUpload){
-         ecad_php_log($datarootpath,"INFO","file uploaded ".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
-         }
-         }else{
-         //file upload couldnt be completed
-         echo "!!ERROR!! there was a problem uplaoding the file!!!!</br>";
-         if($log_fileUpload){
-         ecad_php_log($datarootpath,"ERROR","upload error!! (file not found in destination) ".'['.$path.basename($_FILES["fileToUpload"]["name"]).']['.filesize($target_file).'bytes]');
-         }
-         }
-         }
-         }
-         */
-    }
     function upload_multiple_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $T_maximalUploadSize){
         
         //set php parameters
@@ -1334,8 +1339,13 @@ function removeLoginCockieFromServer($datarootpath, $c_username){
                 }
             }
         }
-        echo'</br><form method="POST" action=""><input name="create_user" value="new user" type="submit"></form>';
-        echo '</br></br><a href="index.php?action=getLogFile"> download log file </a>';
+        echo'</br><form method="POST" action=""><input name="create_user" value="new user" type="submit"></form></br>';
+        if($canAccessSystemFolder){
+            echo '<a href="index.php?systemsettings"> change system settings </a></br></br>';
+        }
+        
+        
+        echo '<a href="index.php?action=getLogFile"> download log file </a>';
         if($canAccessSystemFolder){
             echo '<span style="padding-left:80px"></span><a href="index.php?path=/"> root file browser </a>';
         }
@@ -1350,22 +1360,37 @@ function removeLoginCockieFromServer($datarootpath, $c_username){
             fclose($ecad_php_user_config_file);
         }
     }
-function edit_user_submit($datarootpath, $secret_word){
-    if($_POST['username'] != "" && file_exists($datarootpath."/users/".$_POST['username'])){
-        $current_administrative_user = $user;
-        //standard if userconfig not found
-        $canAccessSystemFolder = false;
-        $userIsAdmin = false;
-        include $datarootpath."/users/".$_POST['username']."/userconfig.php";
+
+
+
+
+function edit_user_submit($datarootpath){
+    $username = getSafeString($_POST['username']);
+    if($username != "" && file_exists($datarootpath."/users/".$username)){
         
-        if ($_POST['password'] ==""){
-            edit_user_keep_password($_POST['username'],$userpasswordHash,$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"),$_POST['allowed_shares']);
-            
-        }else{
-            edit_user($_POST['username'],$_POST['password'],$datarootpath,$secret_word,(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false"),(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false"),(isset($canAccessSystemFolder) && $canAccessSystemFolder ? "true" : "false"),$_POST['allowed_shares']);
-        }
-        include $datarootpath."/users/".$current_administrative_user."/userconfig.php";
-        $userIsAdmin = true;
+        
+        //(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false")
+
+        $username = $username;
+        $password = $_POST['password'];
+        $can_change_password =(isset($_POST['can_change_password']) && $_POST['can_change_password']  ? "true" : "false");
+        $email = $_POST['email'];
+        $can_reset_password =(isset($_POST['can_reset_password']) && $_POST['can_reset_password']  ? "true" : "false");
+        $can_change_email =(isset($_POST['can_change_email']) && $_POST['can_change_email']  ? "true" : "false");
+        $re_routed_user_path = $_POST['re_routed_user_path'];
+        $can_upload =(isset($_POST['can_upload']) && $_POST['can_upload']  ? "true" : "false");
+        $can_delete =(isset($_POST['can_delete']) && $_POST['can_delete']  ? "true" : "false");
+        $amountOfAllowedShares = $_POST['allowed_shares'];
+        $can_use_short_share =(isset($_POST['can_use_short_share']) && $_POST['can_use_short_share']  ? "true" : "false");
+        $can_create_public_shares =(isset($_POST['can_create_public_shares']) && $_POST['can_create_public_shares']  ? "true" : "false");
+        $can_use_quick_login =(isset($_POST['can_use_quick_login']) && $_POST['can_use_quick_login']  ? "true" : "false");
+        
+        
+        edit_user($datarootpath, $username, $password, $can_change_password, $email, $can_reset_password, $can_change_email, $re_routed_user_path, $can_upload, $can_delete, $amountOfAllowedShares,$can_use_short_share,$can_create_public_shares,$can_use_quick_login);
+        
+
+    }else{
+            ecad_php_log($datarootpath,"ERROR","user couldn't be eddited ".'['.$_POST['username'].']');
     }
 }
 function printEditUserView($datarootpath){
@@ -1373,33 +1398,81 @@ function printEditUserView($datarootpath){
     $current_administrative_user = $user;
     //load to edit user
     include $datarootpath."/users/".$_POST['user_to_delete']."/userconfig.php";
-    $toeditUser_can_upload = $can_upload;
-    $toeditUser_can_delete = $can_delete;
-    //load administrator back in again
-    include $datarootpath."/users/".$current_administrative_user."/userconfig.php";
+
     
-    echo '</br><form method="POST" action="">Username: <input type="text" name="username" value="'.$_POST['user_to_delete'].'" readonly></input><br/>Password: <input type="text" name="password">(left empty to keep password)</input><br/>';
+    echo '</br><form method="POST" action="">Username: <input type="text" name="username" value="'.$_POST['user_to_delete'].'" readonly></input><br/><br/>';
     
-    if ($toeditUser_can_upload){
-        echo 'can upload:<input type="checkbox" name="can_upload" value="can_upload" checked></br>';
+
+    echo 'Password: <input type="text" name="password">(left empty to keep password)</input><br/>';
+    if ($can_change_password){
+        echo 'User can change his password: <input type="checkbox" name="can_change_password" value="can_change_password" checked></br></br>';
     }else{
-        echo 'can upload:<input type="checkbox" name="can_upload" value="can_upload"></br>';
+        echo 'User can change his password: <input type="checkbox" name="can_change_password" value="can_change_password"></br></br>';
     }
     
-    if ($toeditUser_can_delete){
-        echo 'can delete / edit:<input type="checkbox" name="can_delete" value="can_delete" checked></br>';
+    
+    echo 'Email: <input type="text" name="email" value="'.$email.'"></input><br/>';
+    if ($can_reset_password){
+        echo 'User can reset password: <input type="checkbox" name="can_reset_password" value="can_reset_password" checked></br>';
     }else{
-        echo 'can delete / edit:<input type="checkbox" name="can_delete" value="can_delete"></br>';
+        echo 'User can reset password: <input type="checkbox" name="can_reset_password" value="can_reset_password"></br>';
     }
+    if ($can_change_email){
+        echo 'User can change his email: <input type="checkbox" name="can_change_email" value="can_change_email" checked></br></br>';
+    }else{
+        echo 'User can change his email: <input type="checkbox" name="can_change_email" value="can_change_email"></br></br>';
+    }
+    
+    
+
+    echo 'User Path re routing: <input type="text" title="enter a share that the user will use as home directory (if left empty will use the data directory of the user)" name="re_routed_user_path" value="'.$re_routed_user_path.'"></br>';
+    if ($can_upload){
+        echo 'can upload: <input type="checkbox" name="can_upload" value="can_upload" checked></br>';
+    }else{
+        echo 'can upload: <input type="checkbox" name="can_upload" value="can_upload"></br>';
+    }
+    if ($can_delete){
+        echo 'can delete / edit: <input type="checkbox" name="can_delete" value="can_delete" checked></br></br>';
+    }else{
+        echo 'can delete / edit: <input type="checkbox" name="can_delete" value="can_delete"></br></br>';
+    }
+    
+    
     echo 'amount of allowed shares: <input type="text" name="allowed_shares" value="'.$amountOfAllowedShares.'"></input> (10 recomendet)</br>';
+    if ($can_use_short_share){
+        echo 'User can use a short share name under the path /s/....: <input type="checkbox" name="can_use_short_share" value="can_use_short_share" checked></br>';
+    }else{
+        echo 'User can use a short share name under the path /s/....: <input type="checkbox" name="can_use_short_share" value="can_use_short_share"></br>';
+    }
+    if ($can_create_public_shares){
+        echo 'User can create shares that are publicly accesable: <input type="checkbox" name="can_create_public_shares" value="can_create_public_shares" checked></br></br>';
+    }else{
+        echo 'User can create shares that are publicly accesable: <input type="checkbox" name="can_create_public_shares" value="can_create_public_shares"></br></br>';
+    }
     
-    echo '<input name="edit_user_submit" value="OK" type="submit"></form>';
+    
+    if ($can_use_quick_login){
+        echo 'User can use quick login: <input type="checkbox" name="can_use_quick_login" value="can_use_quick_login" checked> (has also to be globaly activated)</br>';
+    }else{
+        echo 'User can use quick login: <input type="checkbox" name="can_use_quick_login" value="can_use_quick_login"> (has also to be globaly activated)</br>';
+    }
+    
+    
+    echo '</br><input name="edit_user_submit" value="OK" type="submit"></form>';
 }
 function printCreateUserView(){
     echo '</br><form method="POST" action="">Username: <input type="text" name="username"></input><br/>Password: <input type="text" name="password"></input><br/>';
-    echo 'can upload:<input type="checkbox" name="can_upload" value="is admin"></br>';
-    echo 'can delete / edit:<input type="checkbox" name="can_delete" value="is admin"></br>';
+        echo 'User can change his password: <input type="checkbox" name="can_change_password" value="can_change_password"></br></br>';
+    echo 'Email: <input type="text" name="email"></input><br/>';
+        echo 'User can reset password: <input type="checkbox" name="can_reset_password" value="can_reset_password"></br>';
+        echo 'User can change his email: <input type="checkbox" name="can_change_email" value="can_change_email"></br></br>';
+    echo 'User Path re routing: <input type="text" title="enter a share that the user will use as home directory (if left empty will use the data directory of the user)" name="re_routed_user_path" value="'.$re_routed_user_path.'"></br>';
+        echo 'can upload: <input type="checkbox" name="can_upload" value="can_upload"></br>';
+        echo 'can delete / edit: <input type="checkbox" name="can_delete" value="can_delete"></br></br>';
     echo 'amount of allowed shares: <input type="text" name="allowed_shares" value="0"></input> (10 recomendet)</br>';
+        echo 'User can use a short share name under the path /s/....: <input type="checkbox" name="can_use_short_share" value="can_use_short_share"></br>';
+        echo 'User can create shares that are publicly accesable: <input type="checkbox" name="can_create_public_shares" value="can_create_public_shares"></br></br>';
+        echo 'User can use quick login: <input type="checkbox" name="can_use_quick_login" value="can_use_quick_login"> (has also to be globaly activated)</br>';
     echo '<input name="create_user_submit" value="OK" type="submit"></form>';
 }
 function downloadLogFile($datarootpath){
@@ -2003,7 +2076,17 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
     echo $ecad_php_version." &nbsp&nbsp&nbsp    user: ".$user.' <span style="padding-left:30px"></span> <a href="index.php?action=logout">  logout </a></br>';
     echo '</br><span style="padding-left:20px"></span><a href="index.php?path=" >my files</a></br>';
     echo '</br><span style="padding-left:20px"></span><a href="index.php?share">shares</a></br>';
-    //echo '</br><span style="padding-left:20px"></span><a href="index.php?usersettings">user settings</a> (not implemented)</br>';
+    echo '</br><span style="padding-left:20px"></span><a href="index.php?usersettings">user settings</a> (not implemented)</br>';
+    
+    if($GLOBALS['allow_quick_login'] && $GLOBALS['can_use_quick_login']){
+        
+        echo '<form method="POST" action="" style="margin-bottom: 0px;">';
+        echo '<input name="quickLogin" value="getNew" type="hidden">';
+        echo '<input name="quickLoginAction" value="generate quick login" type="submit">';
+        echo '</form>';
+   
+        echo '</br><span style="padding-left:20px"></span><a href="index.php?administration">administration panel</a> (not implemented)</br>';
+    }
     //echo '</br><span style="padding-left:20px"></span><a href="index.php?administration">administration panel</a> (not implemented)</br>';
 }
 ?>

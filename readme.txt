@@ -1,10 +1,4 @@
-﻿ECAD PHP fileviewer v0.2.03g Handbook
-
-
-Attention!!
-ECAD PHP Filewiever will not be further developed and will be replaced by a new project!
-
-
+﻿ECAD PHP fileviewer v0.2.04xx Handbook
 
 
 
@@ -34,7 +28,17 @@ As default when uploading a file all special characters are replaced with "_". Y
 
 
 
-changes:
+Importend changes:
+v0.2.04
+New password save system (old users from version 0.2.03 can no longer login. copy the "update_parameters.php" file together with the new index.php file to reset the admin password to admin)
+.....
+
+
+
+All changes:
+0.2.04a
+New password save system
+Added new user settings options in administrator Interface (funtionality not jet implemented)
 
 0.2.03g
 added the option to allow all characters in a file name (may cause some problems with older operating systems and older versions of php or apache)
