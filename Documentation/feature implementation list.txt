@@ -1,13 +1,15 @@
 All features list
 TODO_NEXT:
 	Code cleanup
-	password reset
-	user session logout
+	password reset via email
+	usersettings pannel
+		user session logout
+		change password
+		change email
 	quick login (lets you login with 8 numbers that can be generated in your userpanel)
 	default user (the default user will be copied if a new user is created)
 	better upload system (to allow for even bigger files, that take longer as the execution time of php (30 seconds))
 	auto update
-	better password system
 
 
 system functions:
@@ -16,6 +18,8 @@ system functions:
 +logout system
 +user permission system
 +share handling system
+
+-new session handling system with folder structure
 
 -reset password
 
@@ -47,7 +51,11 @@ user:
 	+rename folder/file in share
 	+new folder
 	+for shares added
+	-hide share
+	-favorite share
+	-change share names
 	-update share name on other users if share name was changed
+
 
 +download multiple files as zip archive
 +upload multiple files
@@ -113,18 +121,19 @@ change user settings and permissions:
 
 
 -system configuration
-	-show_password_reset_button
-	-allow_password_reset_functionality
-	-allow_public_shares (for users that arent logged in)
-	-automatically_check_for_updates (set in what interval or if there should be checked if there is an update)
-	-update_notification (settings: set the users who should be notified of an update)
-	-auto_update (settings: update if criticall, update if possible, don't update automatically)
-	-allow_quick_login (if quick login is allowed, but isn't shown on the login page it will be accesable under /quick)
-	-show_quick_login 
-	-quick_login_timeout
-	-set_system_timeout_overwrite
-	-set_password_requirements (only if a user changes his password this setting would aply)
+	+show_password_reset_button
+	+allow_password_reset_functionality
+	+allow_public_shares (for users that arent logged in)
+	+automatically_check_for_updates (set in what interval or if there should be checked if there is an update)
+	+update_notification (settings: set the users who should be notified of an update)
+	+auto_update (settings: update if criticall, update if possible, don't update automatically)
+	+allow_quick_login (if quick login is allowed, but isn't shown on the login page it will be accesable under /quick)
+	+show_quick_login 
+	+quick_login_timeout
+	+set_system_timeout_overwrite
+	+set_password_requirements (only if a user changes his password this setting would aply)
 
+-reset quick login (reseting quick login if there are any problems)
 
 -add/remove administrators of a user
 

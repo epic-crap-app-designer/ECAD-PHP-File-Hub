@@ -1,9 +1,9 @@
 <?php
     //change in the folowing only in the config.php file by copying them there and changing the values, or else you lose your configuration when you update!!!
     $debug = false;
-    $ecad_php_version ="ECAD PHP file hub v0.2.04a";
-    $ecad_php_version_number = "v0.2.04a";
-    $ecad_php_version_id = 116;
+    $ecad_php_version ="ECAD PHP file hub v0.2.04e";
+    $ecad_php_version_number = "v0.2.04e";
+    $ecad_php_version_id = 124;
     
     //install if not installed
     installifneeded($ecad_php_version_number,$ecad_php_version_id);
@@ -63,13 +63,17 @@
     //check if login cockie exists on host
     if ($_COOKIE['ECAD_PHP_fileviewer_login']) {
         list($c_username,$cookie_hash) = explode(',',$_COOKIE['ECAD_PHP_fileviewer_login']);
+        //clean input
+        $c_username = getSafeString($c_username);
+
+        
         //verify if user exists
         if(file_exists($datarootpath."/users/".$c_username)){
             //load user information
             include $datarootpath."/users/".$c_username."/userconfig.php";
             //load saved session cockies
             include $datarootpath."/users/".$c_username.'/login.php';
-            //check if cockie is valid
+            //check if cockie is valid (find in haystack)
             if (strstr($acceptableuserLoginCockies, "-".$_COOKIE['ECAD_PHP_fileviewer_login']."-")){
                 $user = $c_username;
                 $userpath="/".$user;
@@ -384,6 +388,19 @@ if ($authentificated) {
             //show user panel
             showUserPanel($datarootpath, $user, $ecad_php_version);
             
+        }else if (isset($_GET["settings"])){
+            //show user panel
+            echo '<a href="index.php?userpanel"><-- back to user panel</a></br>';
+            //TODO
+            
+            //Change password (if allowed)
+            
+            //change email (if allowed)
+            
+            //show active sessions
+            
+            //close all session except this one
+            
         }else{
             //normal path handling ----------------------------------------------------------------------------------------------------------------------------------------------------------
             //get the path and full path
@@ -459,30 +476,56 @@ if ($authentificated) {
         //end of file view------------------------
     }
 }else{
-    //no valid cockie found
+    //no valid cockie found (user is currently not logged in)
     //login system--------------------------------------------------
-    $user = getSafeFileName($_POST['user']);
-    $pass = $_POST['pass'];
-    
-    $loginaccepted = false;
-    if(isset($_POST['user'])){
-        if(file_exists($datarootpath."/users/".$user)){
-            include $datarootpath."/users/".$user."/userconfig.php";
-            if(password_verify($pass , $userpasswordHash ))
-                $loginaccepted = true;
+    //if normal login
+    if($_POST['submit_login']){
+        $user = getSafeFileName($_POST['user']);
+        $pass = $_POST['pass'];
+        
+        $loginaccepted = false;
+        if(isset($_POST['user'])){
+            if(file_exists($datarootpath."/users/".$user)){
+                include $datarootpath."/users/".$user."/userconfig.php";
+                if(password_verify($pass , $userpasswordHash ))
+                    $loginaccepted = true;
+            }
         }
+        
+        if($loginaccepted && $_POST['user'] != null)
+        {
+            //handel when login sucessfull
+            handelLoginAccepted($datarootpath, $user, $pass, $secret_word);
+        }
+        else
+        {
+            //handel if not logged in and no valid login
+            handelLoginScreenView($show_ecad_php_version_on_title, $ecad_php_version, $datarootpath);
+        }
+        
+        
+    }else if(isset($_GET['quick']) && $allow_quick_login){
+        //quick login
+        //TODO
+        
+    }else if(isset($_GET['share']) && $allow_public_shares){
+        //public share
+        //TODO
+        
+    }else if(isset($_GET['resetPassword']) && $allow_password_reset_functionality){
+        //request link to reset password
+        //TODO
+        
+    }else if(isset($_GET['newPassword']) && $allow_password_reset_functionality){
+        //reset password with provided link
+        //TODO
+        
+        
+    }else{
+         handelLoginScreenView($show_ecad_php_version_on_title, $ecad_php_version, $datarootpath);
     }
     
-    if($loginaccepted && $_POST['user'] != null)
-    {
-        //handel when login sucessfull
-        handelLoginAccepted($datarootpath, $user, $pass, $secret_word);
-    }
-    else
-    {
-        //handel if not logged in and no valid login
-        handelLoginScreenView($show_ecad_php_version_on_title, $ecad_php_version, $datarootpath);
-    }
+   
 }
     //unsorted functions-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     function getSafeString($str){
@@ -541,7 +584,27 @@ function installifneeded($ecad_php_version_number,$ecad_php_version_id) {
         $dataFolderName = '/ECAD PHP file hub data';
         //ecad php config file
         $ecadphpconfigfile = fopen("config.php", "w");
-        $ecadphpconfigStandard = '<?php'."\r\n".'$datarootpath='."'".__DIR__.$dataFolderName."'".';'."\r\n".'$firstInstallationVersion='."'".$ecad_php_version_number."'".';'.'$firstInstallationID='."'".$ecad_php_version_id."'".';'."\r\n".'$adminPassword="admin";'."\r\n".'?>'.'<?php'."\r\n".'$user='.'"user0";'."\r\n".'$userpath='.'"/user0";'."\r\n".'$log_fileUpload=true;'."\r\n".'$allowAllCharactersInObjectNames=false;'."\r\n".'?>';
+        $ecadphpconfigStandard = '<?php'."\r\n".
+        '$datarootpath='."'".__DIR__.$dataFolderName."'".';'."\r\n".
+        '$firstInstallationVersion='."'".$ecad_php_version_number."'".';'.
+        '$firstInstallationID='."'".$ecad_php_version_id."'".';'."\r\n".
+        '$log_fileUpload=true;'."\r\n".
+        '$allowAllCharactersInObjectNames=false;'."\r\n".
+        
+        '$show_password_reset_button=false;'."\r\n".
+        '$allow_password_reset_functionality=false;'."\r\n".
+        '$allow_public_shares=false;'."\r\n".
+        '$automatically_check_for_updates=false;'." //automatic updates may be added in the future \r\n".
+        '$update_notification=false;'."\r\n".
+        '$auto_update=false;'."\r\n".
+        '$allow_quick_login=false;'."\r\n".
+        '$show_quick_login=false;'."\r\n".
+        '$quick_login_timeout='."'2000'".';'."\r\n".
+        '$set_system_timeout_overwrite=false;'."\r\n".
+        '$set_password_requirements='."'".'^\S*(?=\S{8,})(?=\S*[a-z])(?=\S*[A-Z])(?=\S*[\d])\S*$'."'".';'." //requirements length:8 , minimum of at least 1 upper case, lower case and a number \r\n".
+        '?>';
+
+
 fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
 fclose($ecadphpconfigfile);
 //ecad php data folder
@@ -608,6 +671,7 @@ function rrmdir($dir) {
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername);
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/data');
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/downloadpreperation');
+        mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/sessions');
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
         $user_config_file_Standard = '<?php ?>';
@@ -1264,21 +1328,54 @@ function showUploadFunction(){
 <form method="POST" action="index.php">
 Username: <input type="text" name="user"></input><br/>
 Password: <input type="password" name="pass"></input><br/>
-<input type="submit" name="submit" value="login"></input>
+<input style="margin-top:16px;" type="submit" name="submit_login" value="login"></input>
 </form>
 </div>
+
 <?php
+
     }
+    //show quick login
+    global $show_quick_login;
+    if($show_quick_login){
+        ?>
+<div style="text-align:center; margin= 0 auto;">
+        <form method="GET" action="index.php">
+</br>
+    Quick login: <input type="password" name="quick" title="if you are allready logged in on another device you can create a one time quick key in your userpannel that times out after 20 seconds"></input><br/>
+        </form>
+</div>
+        <?php
+    }
+    
+    
+    //give warning if login was unsucessfull and log it
     if(isset($_POST['user'])){
         ecad_php_log($datarootpath,"WARNING","unsucessful login for ".'['.$_POST['user'].']');
         echo '<div style="text-align:center; margin= 0 auto;"><a>username or password incorect</a></div>';
     }
+            
+            //give warning if quick connect didn't work
+            if(isset($_GET['quick'])){
+                ecad_php_log($datarootpath,"WARNING","unsucessful quick login for ".'['.$_POST['user'].']');
+                echo '<div style="text-align:center; margin= 0 auto;"><a>quick login code incorrect</a></div>';
+            }
+
+            //show password reset
+            global $show_password_reset_button;
+            if($show_password_reset_button){
+                echo'<div style="text-align:center; margin= 0 auto;"><a href="index.php?restorepassword"> forgot password</a></div></br>';
+            }
+            
+            
     echo '</body></html>';
     }
+
     
     function handelLoginAccepted($datarootpath, $user, $pass, $secret_word){
         //when login is accepted
-        $newUserCockies = $user.','.md5($pass.$secret_word.time());
+        //using username password secret word and time as seed for the coockie generation
+        $newUserCockies = $user.','.md5($user.$pass.$secret_word.time());
         //activate cockie
         $user_config_file_Standard = '<?php $acceptableuserLoginCockies = $acceptableuserLoginCockies."'.$newUserCockies.'-"; ?>';
         file_put_contents($datarootpath."/users/".$user.'/login.php', $user_config_file_Standard, FILE_APPEND);

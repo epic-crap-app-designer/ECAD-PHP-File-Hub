@@ -1,0 +1,15 @@
+?resetPassword
+?resetPassword submit
+
+?newPassword=code
+?newPassword=code submit
+
+?userpanel submit (quick_create=true)
+?quick=...
+
+
+?systemsettings
+?systemsettings submit
+
+?settings
+?settings submit
