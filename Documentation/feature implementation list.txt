@@ -19,7 +19,7 @@ system functions:
 +user permission system
 +share handling system
 
--new session handling system with folder structure
++new session handling system with folder structure
 
 -reset password
 

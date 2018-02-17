@@ -36,6 +36,9 @@ New password save system (old users from version 0.2.03 can no longer login. cop
 
 
 All changes:
+0.2.04xx
+new session handling system
+
 0.2.04a
 New password save system
 Added new user settings options in administrator Interface (funtionality not jet implemented)

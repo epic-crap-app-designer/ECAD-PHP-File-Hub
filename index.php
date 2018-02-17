@@ -1,9 +1,9 @@
 <?php
     //change in the folowing only in the config.php file by copying them there and changing the values, or else you lose your configuration when you update!!!
     $debug = false;
-    $ecad_php_version ="ECAD PHP file hub v0.2.04e";
-    $ecad_php_version_number = "v0.2.04e";
-    $ecad_php_version_id = 124;
+    $ecad_php_version ="ECAD PHP file hub v0.2.04g";
+    $ecad_php_version_number = "v0.2.04g";
+    $ecad_php_version_id = 127;
     
     //install if not installed
     installifneeded($ecad_php_version_number,$ecad_php_version_id);
@@ -60,28 +60,40 @@
     //addUserToShareSubmit($datarootpath, "admin", "share id", "user0", "false", "false", "false", "false");
     
     
+    //user authentification via cookie:
     //check if login cockie exists on host
     if ($_COOKIE['ECAD_PHP_fileviewer_login']) {
         list($c_username,$cookie_hash) = explode(',',$_COOKIE['ECAD_PHP_fileviewer_login']);
         //clean input
         $c_username = getSafeString($c_username);
+        $cookie_hash = getSafeString($cookie_hash);
 
         
-        //verify if user exists
-        if(file_exists($datarootpath."/users/".$c_username)){
-            //load user information
+        //verify if user exists and check cookie length
+        if(file_exists($datarootpath."/users/".$c_username ) && strlen($cookie_hash) >3){
+            //get user settings
             include $datarootpath."/users/".$c_username."/userconfig.php";
-            //load saved session cockies
-            include $datarootpath."/users/".$c_username.'/login.php';
-            //check if cockie is valid (find in haystack)
-            if (strstr($acceptableuserLoginCockies, "-".$_COOKIE['ECAD_PHP_fileviewer_login']."-")){
+            //check if cookie exists
+            if(file_exists($datarootpath."/users/".$c_username.'/sessions/'.$cookie_hash)){
+                
+                
+                //set user to logged in
                 $user = $c_username;
                 $userpath="/".$user;
-                
                 $authentificated = true;
-            } else {
+                
+                
+                //log last seen
+                //get IP
+                $client_Address = $_SERVER['REMOTE_ADDR'];
+                //get time
+                $current_time = date("Y.m.d-H.i.s",time());
+                //write
+                file_put_contents($datarootpath."/users/".$c_username.'/sessions/'.$cookie_hash.'/last_seen.txt', $current_time.';'.$client_Address);
+            }else{
+                //authentification of cookie failed
                 $authentificated = false;
-                ecad_php_log($datarootpath,"WARNING","no valid cockie");
+                ecad_php_log($datarootpath,"WARNING","no valid cockie: ".$_COOKIE['ECAD_PHP_fileviewer_login']);
             }
         }
         //remove session cockie from server
@@ -89,6 +101,8 @@
             removeLoginCockieFromServer($datarootpath, $c_username);
             $authentificated = false;
         }
+        
+        
     }else{
         $authentificated = false;
     }
@@ -259,6 +273,7 @@ if ($authentificated) {
                     editShareInterface($datarootpath, $user, $_POST['shareToEdit']);
                 }
                 
+                
                 if(isset( $_POST['delete_share'])){
                     //delete share view
                     deleteShareView($datarootpath, $user);
@@ -336,18 +351,14 @@ if ($authentificated) {
                                 $show_user_interface = true;
                                 delete_FolderOrFile_submit($nichtgelisteteDatein, $fullSharePath);
                             }
-                            
-                            //upload file if file is being uploaded
-                            if ( isset( $_POST['upload_single_file'] ) && (($shareCanUpload == 'true')||($user == $shareCreatorName)) ) {
-                                upload_single_file($datarootpath, $log_fileUpload, $fullSharePath, $sharepath, $maximalUploadSize, $maximalUploadSize);
-                            }
                             //upload multiple files if file is being uploaded
                             if ( isset( $_POST['upload_multiple_file'] ) && (($shareCanUpload == 'true')||($user == $shareCreatorName)) ) {
                                 upload_multiple_file($datarootpath, $log_fileUpload, $fullSharePath, $sharepath, $maximalUploadSize, $maximalUploadSize);
                             }
                             
                             //download multiple files as zip archive for shares
-                            if ( isset( $_POST['download_multiple'] ) ){
+                            if ( isset( $_POST['download_multiple'] ) && (($shareCanDownload == 'true')||($user == $shareCreatorName)) ){
+                                //$shareCanDownload
                                 $show_user_interface = false;
                                 $result = download_multiple_file($datarootpath, $user, $nichtgelisteteDatein, $fullSharePath);
                                 if(!$result){
@@ -394,13 +405,24 @@ if ($authentificated) {
             //TODO
             
             //Change password (if allowed)
+            //TODO
             
             //change email (if allowed)
+            //TODO
+            
+            
             
             //show active sessions
+            listActiveSessions();
+
+            
             
             //close all session except this one
+            //TODO
             
+            
+            
+    
         }else{
             //normal path handling ----------------------------------------------------------------------------------------------------------------------------------------------------------
             //get the path and full path
@@ -411,8 +433,8 @@ if ($authentificated) {
                 $path = getSafePath($datarootpath, "/users/".$userpath."/data");
                 $fullpath = getSafeFullPath($datarootpath, "/users/".$userpath."/data", $path);
             }
+            //download file if path is a file
             if(is_file($fullpath)){
-                //download file if path is a file
                 ecad_php_log($datarootpath,"INFO","file download ".'['.$path.']');
                 makeDownload($fullpath, $path);
             }else{
@@ -443,10 +465,6 @@ if ($authentificated) {
                 if ( isset( $_POST['delete_FolderOrFile_submit'] ) && $can_delete ) {
                     $show_user_interface = true;
                     delete_FolderOrFile_submit($nichtgelisteteDatein, $fullpath);
-                }
-                //upload file if file is being uploaded
-                if ( isset( $_POST['upload_single_file'] ) && $can_upload ) {
-                    upload_single_file($datarootpath, $log_fileUpload, $fullpath, $path, $maximalUploadSize, $maximalUploadSize);
                 }
                 //upload multiple files if file is being uploaded
                 if ( isset( $_POST['upload_multiple_file'] ) && $can_upload ) {
@@ -527,6 +545,15 @@ if ($authentificated) {
     
    
 }
+    
+    
+    
+    
+    
+    
+    
+    
+    
     //unsorted functions-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     function getSafeString($str){
         global $allowAllCharactersInObjectNames;
@@ -550,8 +577,25 @@ if ($authentificated) {
         return getSafeString($str);
     }
     
-    
-//beginning of the functions --------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    //delete folder and sub folder
+        function rrmdir($dir) {
+            if (is_dir($dir)) {
+                $objects = scandir($dir);
+                foreach ($objects as $object) {
+                    if ($object != "." && $object != "..") {
+                        if (is_dir($dir."/".$object))
+                            rrmdir($dir."/".$object);
+                        else
+                            unlink($dir."/".$object);
+                    }
+                }
+                rmdir($dir); 
+            } 
+        }
+
+
+
+//system functions --------------------------------------------------------------------------------------------------------------------------------------------------------------------
     ?><?php
         
 function curPageURL() {
@@ -637,7 +681,7 @@ $ecad_php_htaccess_file_Standard = '<Directory ./>'."\r\n".'Order deny,Allow'."\
 fwrite($ecad_php_htaccess_file, $ecad_php_htaccess_file_Standard);
 fclose($ecad_php_htaccess_file);
 
-//config htaccess in root folder
+//config htaccess in root folder for file upload limit
 //TODO
 //file_put_contents(".htaccess","\r\nphp_value upload_max_filesize 50M\r\nphp_value post_max_size 50M",FILE_APPEND);
 
@@ -646,21 +690,7 @@ ecad_php_log(__DIR__.''.$dataFolderName.'',"INFO","ECAD PHP fileviewer successfu
 
 }
 ?><?php
-function rrmdir($dir) {
-    if (is_dir($dir)) {
-        $objects = scandir($dir);
-        foreach ($objects as $object) {
-            if ($object != "." && $object != "..") {
-                if (is_dir($dir."/".$object))
-                    rrmdir($dir."/".$object);
-                else
-                    unlink($dir."/".$object);
-            } 
-        }
-        rmdir($dir); 
-    } 
-}
-?><?php
+    //User Administration -----------------------------------------------------------------------------
     function create_user($user,$ECAD_PHP_fileviewer_X_data_folder){
         
         $toCreateUsername = getSafeString($user);
@@ -672,25 +702,28 @@ function rrmdir($dir) {
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/data');
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/downloadpreperation');
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/sessions');
+        mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/uploadtmp');
+        
+        
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
         $user_config_file_Standard = '<?php ?>';
     fwrite($ecad_php_user_config_file, $user_config_file_Standard);
     fclose($ecad_php_user_config_file);
 
-
-        //create user cockie file
-        $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/login.php', "w");
-        $user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
-        fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-        fclose($ecad_php_user_config_file);
-
         //create user share data
-        mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/sharemounts');
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/shares');
 
+
+
+    //add share fav list
+    $file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/shares/favorites.php', "w");
+    $fileText = '<?php ?>';
+    fwrite($file, $fileText);
+    fclose($file);
+
     }
-?><?php
+
 function edit_user($datarootpath, $username, $new_password, $new_can_change_password, $new_email, $new_can_reset_password, $new_can_change_email, $new_re_routed_user_path, $new_can_upload, $new_can_delete, $new_amountOfAllowedShares,$new_can_use_short_share,$new_can_create_public_shares,$new_can_use_quick_login){
     
     ecad_php_log($datarootpath,"INFO","user edited ".'['.$username.']');
@@ -707,17 +740,17 @@ function edit_user($datarootpath, $username, $new_password, $new_can_change_pass
     }else{
         //change password
         $userpasswordHash = password_hash($new_password, PASSWORD_DEFAULT);
-        //reset user cockie file
-        $sessionFile = fopen($datarootpath.'/users/'.$username.'/login.php', "w");
-        $sessionFileStandard = '<?php $acceptableuserLoginCockies = "-"; ?>';
-        fwrite($sessionFile, $sessionFileStandard);
-        fclose($sessionFile);
+        //reset sessions
+        rrmdir($datarootpath.'/users/'.$username.'/sessions');
     }
 
     
     $ecad_php_user_config_file = fopen($datarootpath.'/users/'.$username.'/userconfig.php', "w");
     
-    $user_config_file_Standard = '<?php'."\r\n".'$userpasswordHash='."'".$userpasswordHash."'".';'."\r\n".'$userIsAdmin= '.$userIsAdmin.";\r\n".'$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".
+    $user_config_file_Standard = '<?php'."\r\n".
+    '$userpasswordHash='."'".$userpasswordHash."'".";\r\n".
+    '$userIsAdmin= '.$userIsAdmin.";\r\n".
+    '$canAccessSystemFolder='.$canAccessSystemFolder.";\r\n".
     '$can_change_password='.$new_can_change_password.";\r\n".
     '$email='."'".$new_email."'".";\r\n".
     '$can_reset_password='.$new_can_reset_password.";\r\n".
@@ -729,6 +762,7 @@ function edit_user($datarootpath, $username, $new_password, $new_can_change_pass
     '$can_use_short_share='.$new_can_use_short_share.";\r\n".
     '$can_create_public_shares='.$new_can_create_public_shares.";\r\n".
     '$can_use_quick_login='.$new_can_use_quick_login.";\r\n".
+    'can_login='."true".";\r\n".
     '?>';
     fwrite($ecad_php_user_config_file, $user_config_file_Standard);
     fclose($ecad_php_user_config_file);
@@ -820,12 +854,6 @@ function toggle_file_checkboxes(source) {
 <div id="uploadFormDiv">
 
 Select a file to upload:
-<!--
-old single file uploader
-<input type="file" name="fileToUpload" id="fileToUpload">
-<input type="submit" value="Upload File" name="upload_single_file">
-<form action="" method="post" enctype="multipart/form-data">
--->
 
 
 <input type="file" id="file" name="filesToUpload[]" multiple="multiple" />
@@ -1375,13 +1403,25 @@ Password: <input type="password" name="pass"></input><br/>
     function handelLoginAccepted($datarootpath, $user, $pass, $secret_word){
         //when login is accepted
         //using username password secret word and time as seed for the coockie generation
-        $newUserCockies = $user.','.md5($user.$pass.$secret_word.time());
-        //activate cockie
-        $user_config_file_Standard = '<?php $acceptableuserLoginCockies = $acceptableuserLoginCockies."'.$newUserCockies.'-"; ?>';
-        file_put_contents($datarootpath."/users/".$user.'/login.php', $user_config_file_Standard, FILE_APPEND);
-
+        $cookieStore = md5($user.$pass.$secret_word.time());
+        $newUserCockies = $user.','.$cookieStore;
+        
+        //save session as active
+        mkdir($datarootpath.'/users/'.$user.'/sessions/'.$cookieStore, 0777, true);
+        
+        
+        //set first login
+        //get IP
+        $client_Address = $_SERVER['REMOTE_ADDR'];
+        //get time
+        $current_time = date("Y.m.d-H.i.s",time());
+        //write to file
+        file_put_contents($datarootpath.'/users/'.$user.'/sessions/'.$cookieStore.'/first_seen.txt', $current_time.';'.$client_Address);
+        
+        
+        //set cookie on client
         setcookie('ECAD_PHP_fileviewer_login',$newUserCockies);
-        //setcookie('ECAD_PHP_fileviewer_login',$user.','.md5($pass.$secret_word));
+
         echo "you are logged in      please wait.......";
         header("Refresh:0; url=index.php?path=");
         ecad_php_log($datarootpath,"INFO","user logged in ".'[new cockie: '.$newUserCockies.']');
@@ -1390,12 +1430,13 @@ Password: <input type="password" name="pass"></input><br/>
 
 function removeLoginCockieFromServer($datarootpath, $c_username){
     //delete session from server
-    $str3706849=file_get_contents($datarootpath."/users/".$c_username.'/login.php');
     
+    list($c_username,$cookie_hash) = explode(',',$_COOKIE['ECAD_PHP_fileviewer_login']);
+    //clean input
+    $c_username = getSafeString($c_username);
+    $cookie_hash = getSafeString($cookie_hash);
+    rrmdir($datarootpath.'/users/'.$c_username.'/sessions/'.$cookie_hash);
     
-    $str3706849=str_replace('<?php $acceptableuserLoginCockies = $acceptableuserLoginCockies."'.$_COOKIE['ECAD_PHP_fileviewer_login'].'-"; ?>', '',$str3706849);
-    
-    file_put_contents($datarootpath."/users/".$c_username.'/login.php', $str3706849);
     
     //delete cockie from client
     setcookie('ECAD_PHP_fileviewer_login',"null");
@@ -1450,14 +1491,12 @@ function removeLoginCockieFromServer($datarootpath, $c_username){
     }
     function logout_user($datarootpath){
         if($_POST['user_to_delete'] != ""){
+            $user_tmp = getSafeString($_POST['user_to_delete']);
             ecad_php_log($datarootpath,"INFO"," logged out by admin".'['.$_POST['user_to_delete'].']');
-            $ecad_php_user_config_file = fopen($datarootpath.'/users/'.$_POST['user_to_delete'].'/login.php', "w");
-            $user_config_file_Standard = '<?php $acceptableuserLoginCockies = "-"; ?>';
-            fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-            fclose($ecad_php_user_config_file);
+            
+            rrmdir($datarootpath.'/users/'.$user_tmp.'/sessions');
         }
     }
-
 
 
 
@@ -2173,7 +2212,7 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
     echo $ecad_php_version." &nbsp&nbsp&nbsp    user: ".$user.' <span style="padding-left:30px"></span> <a href="index.php?action=logout">  logout </a></br>';
     echo '</br><span style="padding-left:20px"></span><a href="index.php?path=" >my files</a></br>';
     echo '</br><span style="padding-left:20px"></span><a href="index.php?share">shares</a></br>';
-    echo '</br><span style="padding-left:20px"></span><a href="index.php?usersettings">user settings</a> (not implemented)</br>';
+    echo '</br><span style="padding-left:20px"></span><a href="index.php?settings">settings</a> (not implemented)</br>';
     
     if($GLOBALS['allow_quick_login'] && $GLOBALS['can_use_quick_login']){
         
@@ -2186,4 +2225,115 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
     }
     //echo '</br><span style="padding-left:20px"></span><a href="index.php?administration">administration panel</a> (not implemented)</br>';
 }
+?><?php
+    //user settings ----------------------------------------------------------------------------------------------------------------------------------------------------
+    //TODO
+    //show
+    
+    
+    //submit
+    //TODO
+    
+    
+    
+    //show sessions
+    //TODO
+    function listActiveSessions(){
+        global $datarootpath, $user, $cookie_hash,$nichtgelisteteDatein;
+        //TODO (sorting, closing sessions)
+        echo 'Active Sessions: </br>';
+        $files = scandir($datarootpath.'/users/'.$user.'/sessions/');
+        
+        $sessions = array();
+        $sessionCount = 0;
+        
+        //read sessions
+        foreach($files as $file){
+            if (!in_array( $file , $nichtgelisteteDatein )){
+                
+                //read files
+                $sessionContent_lastSeen = file_get_contents($datarootpath.'/users/'.$user.'/sessions/'.$file.'/last_seen.txt');
+                $sessionContent_FirstSeen = file_get_contents($datarootpath.'/users/'.$user.'/sessions/'.$file.'/first_seen.txt');
+                
+                //handel problems
+                if(!$sessionContent_lastSeen) $sessionContent_lastSeen = '_;_';
+                if(!$sessionContent_FirstSeen) $sessionContent_FirstSeen = '_;_';
+                
+                
+                list($lastSeen_time,$lastSeen_IP) = explode(';',$sessionContent_lastSeen);
+                list($firstSeen_time,$firstSeen_IP) = explode(';',$sessionContent_FirstSeen);
+                
+                //array_push($sessions,array($lastSeen_time,$lastSeen_IP,$firstSeen_time,$firstSeen_IP));
+                
+                $sessions[0][$sessionCount] = $lastSeen_time;
+                $sessions[1][$sessionCount] = $lastSeen_IP;
+                $sessions[2][$sessionCount] = $firstSeen_time;
+                $sessions[3][$sessionCount] = $firstSeen_IP;
+                $sessions[4][$sessionCount] = $file;
+                
+                $sessionCount++;
+            }
+        }
+        
+        //sort sessions
+        array_multisort($sessions[0], SORT_DESC, SORT_STRING, $sessions[1],$sessions[2],$sessions[3],$sessions[4] );
+        
+        //print sessions
+        for ($i = 0; $i < $sessionCount; $i++) {
+            
+            //check if current session
+            if($sessions[4][$i] === $cookie_hash){
+                echo ($i+1).'<span style="padding-left:20px">Current Session: <span style="padding-left:122px">ip:  '.$sessions[1][$i].'<span style="padding-left:60px"> original login: '.$sessions[2][$i].'<span style="padding-left:20px">ip: '.$sessions[3][$i].'<span style="padding-left:20px"></br>';
+            }else{
+                echo '<form method="POST" action="">';
+                echo ($i+1).'<span style="padding-left:20px">last seen at: '.$sessions[0][$i].'<span style="padding-left:20px">ip:  '.$sessions[1][$i].'<span style="padding-left:60px"> original login: '.$sessions[2][$i].'<span style="padding-left:20px">ip: '.$sessions[3][$i].'<span style="padding-left:20px"> ';
+                
+                echo '<input type="hidden" name="close_session_submit_name" value="'.$sessions[4][$sessionCount].' type="submit"><input name="close_session_submit" value="close session" type="submit"></form>';
+                echo '</br>';
+            }
+            
+            
+            
+
+            
+            
+        }
+    }
+
+    
+
+    
+    //close one specific session
+    //TODO
+    
+    //close all sessions except current
+    //TODO
+    
+    
+?><?php
+    //Password restore/reset password ----------------------------------------------------------------------------------------------------------------------------------------------------
+    //TODO
+
+    //resetPassword
+    //TODO
+    //resetPassword submit
+    //TODO
+    
+    //newPassword=code
+    //TODO
+    //newPassword=code submit
+    //TODO
+    
+
+
+    
+?><?php
+    //quick login ----------------------------------------------------------------------------------------------------------------------------------------------------
+    //TODO
+    //userpanel submit (quick_create=true)
+    //TODO
+    //quick=...
+    //TODO
+    
+    
 ?>
