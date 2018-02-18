@@ -4,7 +4,6 @@
 ?newPassword=code
 ?newPassword=code submit
 
-?userpanel submit (quick_create=true)
 ?quick=...
 
 

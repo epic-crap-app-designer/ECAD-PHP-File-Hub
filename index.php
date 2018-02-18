@@ -1,9 +1,9 @@
 <?php
     //change in the folowing only in the config.php file by copying them there and changing the values, or else you lose your configuration when you update!!!
     $debug = false;
-    $ecad_php_version ="ECAD PHP file hub v0.2.04g";
-    $ecad_php_version_number = "v0.2.04g";
-    $ecad_php_version_id = 127;
+    $ecad_php_version ="ECAD PHP file hub v0.2.04i";
+    $ecad_php_version_number = "v0.2.04i";
+    $ecad_php_version_id = 129;
     
     //install if not installed
     installifneeded($ecad_php_version_number,$ecad_php_version_id);
@@ -50,7 +50,7 @@
     
     
     //1-ignores errors 2-shows errors
-    error_reporting(1);
+    error_reporting(2);
     
     //authentification service cockie
     $authentificated = false;
@@ -411,6 +411,8 @@ if ($authentificated) {
             //TODO
             
             
+            //close sessions
+            if(isset($_POST['close_session_submit_name'])) closeSessionFromSettings();
             
             //show active sessions
             listActiveSessions();
@@ -513,7 +515,7 @@ if ($authentificated) {
         if($loginaccepted && $_POST['user'] != null)
         {
             //handel when login sucessfull
-            handelLoginAccepted($datarootpath, $user, $pass, $secret_word);
+            handelLoginAccepted($datarootpath, $user, $pass, $secret_word, 'normal login');
         }
         else
         {
@@ -522,28 +524,31 @@ if ($authentificated) {
         }
         
         
-    }else if(isset($_GET['quick']) && $allow_quick_login){
-        //quick login
-        //TODO
-        
-    }else if(isset($_GET['share']) && $allow_public_shares){
-        //public share
-        //TODO
-        
-    }else if(isset($_GET['resetPassword']) && $allow_password_reset_functionality){
-        //request link to reset password
-        //TODO
-        
-    }else if(isset($_GET['newPassword']) && $allow_password_reset_functionality){
-        //reset password with provided link
-        //TODO
-        
-        
     }else{
-         handelLoginScreenView($show_ecad_php_version_on_title, $ecad_php_version, $datarootpath);
+        //check quick login
+        if($allow_quick_login && quickKeyCheckForLoginOrDelete()){
+            //logged in
+
+            
+            
+        }else if(isset($_GET['share']) && $allow_public_shares){
+            //public share
+            //TODO
+            
+        }else if(isset($_GET['resetPassword']) && $allow_password_reset_functionality){
+            //request link to reset password
+            //TODO
+            
+        }else if(isset($_GET['newPassword']) && $allow_password_reset_functionality){
+            //reset password with provided link
+            //TODO
+            
+            
+        }else{
+            handelLoginScreenView($show_ecad_php_version_on_title, $ecad_php_version, $datarootpath);
+        }
+        
     }
-    
-   
 }
     
     
@@ -655,6 +660,7 @@ fclose($ecadphpconfigfile);
 mkdir('.'.$dataFolderName.'/shares', 0777, true);
 mkdir('.'.$dataFolderName.'/pages', 0777, true);
 mkdir('.'.$dataFolderName.'/users', 0777, true);
+mkdir('.'.$dataFolderName.'/quicklogin', 0777, true);
 
 
 
@@ -708,8 +714,8 @@ ecad_php_log(__DIR__.''.$dataFolderName.'',"INFO","ECAD PHP fileviewer successfu
         //create user
         $ecad_php_user_config_file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/userconfig.php', "w");
         $user_config_file_Standard = '<?php ?>';
-    fwrite($ecad_php_user_config_file, $user_config_file_Standard);
-    fclose($ecad_php_user_config_file);
+        fwrite($ecad_php_user_config_file, $user_config_file_Standard);
+        fclose($ecad_php_user_config_file);
 
         //create user share data
         mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/shares');
@@ -762,7 +768,7 @@ function edit_user($datarootpath, $username, $new_password, $new_can_change_pass
     '$can_use_short_share='.$new_can_use_short_share.";\r\n".
     '$can_create_public_shares='.$new_can_create_public_shares.";\r\n".
     '$can_use_quick_login='.$new_can_use_quick_login.";\r\n".
-    'can_login='."true".";\r\n".
+    '$can_login='."true".";\r\n".
     '?>';
     fwrite($ecad_php_user_config_file, $user_config_file_Standard);
     fclose($ecad_php_user_config_file);
@@ -1366,14 +1372,7 @@ Password: <input type="password" name="pass"></input><br/>
     //show quick login
     global $show_quick_login;
     if($show_quick_login){
-        ?>
-<div style="text-align:center; margin= 0 auto;">
-        <form method="GET" action="index.php">
-</br>
-    Quick login: <input type="password" name="quick" title="if you are allready logged in on another device you can create a one time quick key in your userpannel that times out after 20 seconds"></input><br/>
-        </form>
-</div>
-        <?php
+        echo '<div style="text-align:center; margin= 0 auto;"><form method="POST" action="index.php">Quick login key: '.getCurrentQuickLoginKey().' <input  type="submit" name="refresh" value="login"></input></form></div>';
     }
     
     
@@ -1400,7 +1399,7 @@ Password: <input type="password" name="pass"></input><br/>
     }
 
     
-    function handelLoginAccepted($datarootpath, $user, $pass, $secret_word){
+    function handelLoginAccepted($datarootpath, $user, $pass, $secret_word, $loginType){
         //when login is accepted
         //using username password secret word and time as seed for the coockie generation
         $cookieStore = md5($user.$pass.$secret_word.time());
@@ -1416,7 +1415,7 @@ Password: <input type="password" name="pass"></input><br/>
         //get time
         $current_time = date("Y.m.d-H.i.s",time());
         //write to file
-        file_put_contents($datarootpath.'/users/'.$user.'/sessions/'.$cookieStore.'/first_seen.txt', $current_time.';'.$client_Address);
+        file_put_contents($datarootpath.'/users/'.$user.'/sessions/'.$cookieStore.'/first_seen.txt', $current_time.';'.$client_Address.';'.$loginType);
         
         
         //set cookie on client
@@ -2212,16 +2211,28 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
     echo $ecad_php_version." &nbsp&nbsp&nbsp    user: ".$user.' <span style="padding-left:30px"></span> <a href="index.php?action=logout">  logout </a></br>';
     echo '</br><span style="padding-left:20px"></span><a href="index.php?path=" >my files</a></br>';
     echo '</br><span style="padding-left:20px"></span><a href="index.php?share">shares</a></br>';
-    echo '</br><span style="padding-left:20px"></span><a href="index.php?settings">settings</a> (not implemented)</br>';
+    echo '</br><span style="padding-left:20px"></span><a href="index.php?settings">settings</a></br>';
     
     if($GLOBALS['allow_quick_login'] && $GLOBALS['can_use_quick_login']){
         
-        echo '<form method="POST" action="" style="margin-bottom: 0px;">';
-        echo '<input name="quickLogin" value="getNew" type="hidden">';
-        echo '<input name="quickLoginAction" value="generate quick login" type="submit">';
+        echo '</br><form method="POST" action="" style="margin-bottom: 0px;">';
+        //echo '<input name="quickLogin" value="getNew" type="hidden">';
+        
+        echo 'Quick Login: <input name="quickLoginCode" value="" type="text" titel="enter the quick login key on the login page or go to index.php?quick and enther the given quick login key here to login (you will have to refresh the page"> ';
+        echo ' <input name="quickLoginAction" value="login" type="submit">';
+        
+        //make quick login
+        
+        if(isset($_POST["quickLoginAction"])) echo '<span style="padding-left:20px"></span>'.logintoquicklogin($user,getSafeString($_POST["quickLoginCode"]));
+        
+        
+        
+        
+        
+        
         echo '</form>';
    
-        echo '</br><span style="padding-left:20px"></span><a href="index.php?administration">administration panel</a> (not implemented)</br>';
+        
     }
     //echo '</br><span style="padding-left:20px"></span><a href="index.php?administration">administration panel</a> (not implemented)</br>';
 }
@@ -2257,11 +2268,11 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
                 
                 //handel problems
                 if(!$sessionContent_lastSeen) $sessionContent_lastSeen = '_;_';
-                if(!$sessionContent_FirstSeen) $sessionContent_FirstSeen = '_;_';
+                if(!$sessionContent_FirstSeen) $sessionContent_FirstSeen = '_;_;normal login';
                 
                 
                 list($lastSeen_time,$lastSeen_IP) = explode(';',$sessionContent_lastSeen);
-                list($firstSeen_time,$firstSeen_IP) = explode(';',$sessionContent_FirstSeen);
+                list($firstSeen_time,$firstSeen_IP,$loginType) = explode(';',$sessionContent_FirstSeen);
                 
                 //array_push($sessions,array($lastSeen_time,$lastSeen_IP,$firstSeen_time,$firstSeen_IP));
                 
@@ -2270,25 +2281,26 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
                 $sessions[2][$sessionCount] = $firstSeen_time;
                 $sessions[3][$sessionCount] = $firstSeen_IP;
                 $sessions[4][$sessionCount] = $file;
+                $sessions[5][$sessionCount] = $loginType;
                 
                 $sessionCount++;
             }
         }
         
         //sort sessions
-        array_multisort($sessions[0], SORT_DESC, SORT_STRING, $sessions[1],$sessions[2],$sessions[3],$sessions[4] );
+        array_multisort($sessions[0], SORT_DESC, SORT_STRING, $sessions[1],$sessions[2],$sessions[3],$sessions[4],$sessions[5]);
         
         //print sessions
         for ($i = 0; $i < $sessionCount; $i++) {
             
             //check if current session
             if($sessions[4][$i] === $cookie_hash){
-                echo ($i+1).'<span style="padding-left:20px">Current Session: <span style="padding-left:122px">ip:  '.$sessions[1][$i].'<span style="padding-left:60px"> original login: '.$sessions[2][$i].'<span style="padding-left:20px">ip: '.$sessions[3][$i].'<span style="padding-left:20px"></br>';
+                echo ($i+1).'<span style="padding-left:20px">Current Session: <span style="padding-left:122px">ip:  '.$sessions[1][$i].'<span style="padding-left:60px"> original login: '.$sessions[2][$i].'<span style="padding-left:20px">ip: '.$sessions[3][$i].'<span style="padding-left:20px">login Type: '.$sessions[5][$i].'</br>';
             }else{
                 echo '<form method="POST" action="">';
-                echo ($i+1).'<span style="padding-left:20px">last seen at: '.$sessions[0][$i].'<span style="padding-left:20px">ip:  '.$sessions[1][$i].'<span style="padding-left:60px"> original login: '.$sessions[2][$i].'<span style="padding-left:20px">ip: '.$sessions[3][$i].'<span style="padding-left:20px"> ';
+                echo ($i+1).'<span style="padding-left:20px">last seen at: '.$sessions[0][$i].'<span style="padding-left:20px">ip:  '.$sessions[1][$i].'<span style="padding-left:60px"> original login: '.$sessions[2][$i].'<span style="padding-left:20px">ip: '.$sessions[3][$i].'<span style="padding-left:20px">login Type: '.$sessions[5][$i].'<span style="padding-left:20px"> ';
                 
-                echo '<input type="hidden" name="close_session_submit_name" value="'.$sessions[4][$sessionCount].' type="submit"><input name="close_session_submit" value="close session" type="submit"></form>';
+                echo '<input type="hidden" name="close_session_submit_name" value="'.$sessions[4][$i].'" type="submit"><input name="close_session_submit" value="close session" type="submit"></form>';
                 echo '</br>';
             }
             
@@ -2304,7 +2316,14 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
 
     
     //close one specific session
-    //TODO
+    function closeSessionFromSettings(){
+        global $datarootpath, $user;
+        $sessionToClose = getSafeString($_POST["close_session_submit_name"]);
+
+
+        rrmdir($datarootpath.'/users/'.$user.'/sessions/'.$sessionToClose.'/');
+
+    }
     
     //close all sessions except current
     //TODO
@@ -2330,10 +2349,108 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
 ?><?php
     //quick login ----------------------------------------------------------------------------------------------------------------------------------------------------
     //TODO
-    //userpanel submit (quick_create=true)
+    
+    
+    //get current quickKey
     //TODO
-    //quick=...
+    function getCurrentQuickLoginKey(){
+        global $datarootpath;
+
+        //check if key exists on client and if it is still working
+        
+        $newQuckKey = rand(10000000, 99999999);
+        while(file_exists($datarootpath.'/quicklogin/'.$newQuckKey.'/')) $newQuckKey = rand(10000000, 99999999);
+        
+        mkdir($datarootpath."/quicklogin/".$newQuckKey, 0777, true);
+        file_put_contents($datarootpath."/quicklogin/".$newQuckKey.'/config.php', '<?php $quickKeyUser="";   $quickKeyCreationTime='.round(microtime(true)).'     ?>');
+        setcookie('ECAD_PHP_fileviewer_quickkey',$newQuckKey);
+
+        return substr($newQuckKey, 0, 4).' '.substr($newQuckKey, 4);
+
+    }
+    
+    //check quick key for validity (a quick key works for 60 seconds)
     //TODO
+    function quickKeyCheckForLoginOrDelete(){
+        global $datarootpath;
+
+        if(isset($_COOKIE['ECAD_PHP_fileviewer_quickkey'])){
+
+             $quickKey = getSafeString($_COOKIE['ECAD_PHP_fileviewer_quickkey']);
+            //check if key exists on client and if it is still working
+            
+            if(file_exists($datarootpath.'/quicklogin/'.$quickKey.'/config.php')){
+
+                include $datarootpath.'/quicklogin/'.$quickKey.'/config.php';
+            }else{
+
+                return false;
+            }
+
+            //check if key has timed out
+            if($quickKeyCreationTime+40 < round(microtime(true))){
+                
+
+                //remove key from server
+                rrmdir($datarootpath.'/quicklogin/'.$quickKey);
+                
+
+                
+                return false;
+            }else{
+                //quick key is valid check for user
+                if($quickKeyUser !=''){
+                    //login key accepted
+                    echo 'login via quick login....</br>';
+                    //remove key
+                    rrmdir($datarootpath.'/quicklogin/'.$quickKey);
+                    
+                    //logging in user
+                    handelLoginAccepted($datarootpath, $quickKeyUser, 'npw', $secret_word, 'quickLogin');
+
+                    return true;
+                }else{
+                    rrmdir($datarootpath.'/quicklogin/'.$quickKey);
+
+                    return false;
+                }
+            }
+        }
+
+
+        return false;
+    }
+
+
+    //user input for quick login
+    function logintoquicklogin($username, $quickKey){
+        global $datarootpath;
+        $quickKey = preg_replace('/[^0-9]/i', '', $quickKey);
+        //$quickKey = str_replace(" " , "" , $quickKey);
+        if(strlen($quickKey) > 3){
+
+            if(file_exists($datarootpath.'/quicklogin/'.$quickKey.'/config.php')){
+  
+                include $datarootpath.'/quicklogin/'.$quickKey.'/config.php';
+            }else{
+
+                return 'invalid quick key';
+            }
+ 
+            file_put_contents($datarootpath.'/quicklogin/'.$quickKey.'/config.php', '<?php $quickKeyUser="'.$username.'";   $quickKeyCreationTime='.$quickKeyCreationTime.'     ?>');
+            return 'login accepted <span style="padding-left:20px"></span> please press the login button on the other device to complete the login';
+        }
+
+        return 'please enter a valid key';
+
+        
+        
+    }
+    
+    
+
+
+
     
     
 ?>

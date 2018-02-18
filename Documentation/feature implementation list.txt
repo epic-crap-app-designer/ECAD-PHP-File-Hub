@@ -6,7 +6,7 @@ TODO_NEXT:
 		user session logout
 		change password
 		change email
-	quick login (lets you login with 8 numbers that can be generated in your userpanel)
+
 	default user (the default user will be copied if a new user is created)
 	better upload system (to allow for even bigger files, that take longer as the execution time of php (30 seconds))
 	auto update
@@ -25,10 +25,10 @@ system functions:
 
 -implement a system to allow the upload of bigger files
 
--quick login system
-	-create quick login key (in userpanel)
-	-login with quick login key
-	-verify quick login key
++quick login system
+	+create quick login key
+	+login with quick login key
+	+verify quick login key
 
 
 user:
