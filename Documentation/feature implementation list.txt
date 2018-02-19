@@ -1,6 +1,7 @@
 All features list
 TODO_NEXT:
 	Code cleanup
+	edit files / view pictures
 	password reset via email
 	usersettings pannel
 		user session logout
@@ -37,6 +38,8 @@ user:
 +rename folder/file
 +delete files
 +create new folder
+-view picture
+-edit file
 
 -implement re_routed_user_path
 
@@ -51,6 +54,8 @@ user:
 	+rename folder/file in share
 	+new folder
 	+for shares added
+	-view picture
+	-edit file
 	-hide share
 	-favorite share
 	-change share names

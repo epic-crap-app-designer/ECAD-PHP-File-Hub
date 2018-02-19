@@ -1,9 +1,12 @@
 <?php
+    $TimeTestTimeStart = microtime(true);;
+
     //change in the folowing only in the config.php file by copying them there and changing the values, or else you lose your configuration when you update!!!
+    
     $debug = false;
-    $ecad_php_version ="ECAD PHP file hub v0.2.04i";
-    $ecad_php_version_number = "v0.2.04i";
-    $ecad_php_version_id = 129;
+    $ecad_php_version ="ECAD PHP file hub v0.2.04k";
+    $ecad_php_version_number = "v0.2.04k";
+    $ecad_php_version_id = 132;
     
     //install if not installed
     installifneeded($ecad_php_version_number,$ecad_php_version_id);
@@ -50,7 +53,7 @@
     
     
     //1-ignores errors 2-shows errors
-    error_reporting(2);
+    error_reporting(1);
     
     //authentification service cockie
     $authentificated = false;
@@ -110,9 +113,12 @@
     if($_GET["action"] == "logout"){
         ecad_php_log($datarootpath,"INFO","logout");
         //sets client cockie null
-        setcookie('ECAD_PHP_fileviewer_login',"null");
+        setcookie('ECAD_PHP_fileviewer_login',"",-1);
+
+        echo 'please wait. completing logout......</br>';
         $authentificated = false;
         header("Refresh:0; url=index.php");
+        exit();
     }
 
     //-------------------
@@ -499,7 +505,19 @@ if ($authentificated) {
     //no valid cockie found (user is currently not logged in)
     //login system--------------------------------------------------
     //if normal login
-    if($_POST['submit_login']){
+    //check if quick login check
+    if($allow_quick_login && isset($_GET['cfqlc'])){
+        echo quickKeyCheckForLogin(getSafeString($_COOKIE['ECAD_PHP_fileviewer_quickkey']));
+        
+    }else if($allow_quick_login && isset($_GET['gnqk'])){
+        removeQuickLoginKeyFromServer(getSafeString($_COOKIE['ECAD_PHP_fileviewer_quickkey']));
+        echo getCurrentQuickLoginKey();
+        
+
+        
+        
+        
+    }else if($_POST['submit_login']){
         $user = getSafeFileName($_POST['user']);
         $pass = $_POST['pass'];
         
@@ -514,6 +532,12 @@ if ($authentificated) {
         
         if($loginaccepted && $_POST['user'] != null)
         {
+            //remove quick key from server
+            removeQuickLoginKeyFromServer(getSafeString($_COOKIE['ECAD_PHP_fileviewer_quickkey']));
+            //remove quick key from client
+            setcookie('ECAD_PHP_fileviewer_quickkey','',-1);
+
+
             //handel when login sucessfull
             handelLoginAccepted($datarootpath, $user, $pass, $secret_word, 'normal login');
         }
@@ -525,13 +549,17 @@ if ($authentificated) {
         
         
     }else{
-        //check quick login
-        if($allow_quick_login && quickKeyCheckForLoginOrDelete()){
+        //check quick login attempt
+        if(($allow_quick_login && $show_quick_login && quickKeyCheckForLoginOrDelete())||($allow_quick_login && isset($_GET['quick']) && quickKeyCheckForLoginOrDelete())){
             //logged in
+            
+            
+            //check for quick login window
+        }elseif($allow_quick_login && isset($_GET['quick'])){
+            printQuickLoginWindow();
+            
 
-            
-            
-        }else if(isset($_GET['share']) && $allow_public_shares){
+        }else  if(isset($_GET['share']) && $allow_public_shares){
             //public share
             //TODO
             
@@ -1371,9 +1399,7 @@ Password: <input type="password" name="pass"></input><br/>
     }
     //show quick login
     global $show_quick_login;
-    if($show_quick_login){
-        echo '<div style="text-align:center; margin= 0 auto;"><form method="POST" action="index.php">Quick login key: '.getCurrentQuickLoginKey().' <input  type="submit" name="refresh" value="login"></input></form></div>';
-    }
+    if($show_quick_login) printQuickLoginWindow();
     
     
     //give warning if login was unsucessfull and log it
@@ -1381,12 +1407,7 @@ Password: <input type="password" name="pass"></input><br/>
         ecad_php_log($datarootpath,"WARNING","unsucessful login for ".'['.$_POST['user'].']');
         echo '<div style="text-align:center; margin= 0 auto;"><a>username or password incorect</a></div>';
     }
-            
-            //give warning if quick connect didn't work
-            if(isset($_GET['quick'])){
-                ecad_php_log($datarootpath,"WARNING","unsucessful quick login for ".'['.$_POST['user'].']');
-                echo '<div style="text-align:center; margin= 0 auto;"><a>quick login code incorrect</a></div>';
-            }
+    
 
             //show password reset
             global $show_password_reset_button;
@@ -1438,7 +1459,7 @@ function removeLoginCockieFromServer($datarootpath, $c_username){
     
     
     //delete cockie from client
-    setcookie('ECAD_PHP_fileviewer_login',"null");
+    setcookie('ECAD_PHP_fileviewer_login',"",-1);
     header("Refresh:0; url=index.php");
 }
 
@@ -2092,7 +2113,7 @@ function editUserInShareSubmit($datarootpath, $user){
             echo "you can't add yourself to the share!!!";
         }
     }else{
-        ecad_php_log($datarootpath,"WARNING“,“edit user in share without permissions ".'[ID:'.$shareID.']');
+        ecad_php_log($datarootpath,"WARNING","edit user in share without permissions ".'[ID:'.$shareID.']');
         echo 'you dont have permissions  to do that!!!!';
     }
 }
@@ -2295,13 +2316,13 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
             
             //check if current session
             if($sessions[4][$i] === $cookie_hash){
-                echo ($i+1).'<span style="padding-left:20px">Current Session: <span style="padding-left:122px">ip:  '.$sessions[1][$i].'<span style="padding-left:60px"> original login: '.$sessions[2][$i].'<span style="padding-left:20px">ip: '.$sessions[3][$i].'<span style="padding-left:20px">login Type: '.$sessions[5][$i].'</br>';
+                echo ($i+1).'<span style="padding-left:20px">Current Session: <span style="padding-left:122px">ip:  '.$sessions[1][$i].'<span style="padding-left:60px"> original login: '.$sessions[2][$i].'<span style="padding-left:20px">ip: '.$sessions[3][$i].'<span style="padding-left:20px">login Type: '.$sessions[5][$i].'</br></br>';
             }else{
                 echo '<form method="POST" action="">';
                 echo ($i+1).'<span style="padding-left:20px">last seen at: '.$sessions[0][$i].'<span style="padding-left:20px">ip:  '.$sessions[1][$i].'<span style="padding-left:60px"> original login: '.$sessions[2][$i].'<span style="padding-left:20px">ip: '.$sessions[3][$i].'<span style="padding-left:20px">login Type: '.$sessions[5][$i].'<span style="padding-left:20px"> ';
                 
                 echo '<input type="hidden" name="close_session_submit_name" value="'.$sessions[4][$i].'" type="submit"><input name="close_session_submit" value="close session" type="submit"></form>';
-                echo '</br>';
+                echo '</br></br>';
             }
             
             
@@ -2359,13 +2380,17 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
         //check if key exists on client and if it is still working
         
         $newQuckKey = rand(10000000, 99999999);
-        while(file_exists($datarootpath.'/quicklogin/'.$newQuckKey.'/')) $newQuckKey = rand(10000000, 99999999);
+        //get some numbers for check sum
+        $newQuickKeyHash =  substr(crc32($newQuckKey), 1, 2);
         
-        mkdir($datarootpath."/quicklogin/".$newQuckKey, 0777, true);
-        file_put_contents($datarootpath."/quicklogin/".$newQuckKey.'/config.php', '<?php $quickKeyUser="";   $quickKeyCreationTime='.round(microtime(true)).'     ?>');
-        setcookie('ECAD_PHP_fileviewer_quickkey',$newQuckKey);
+        //repeat if allready exists
+        while(file_exists($datarootpath.'/quicklogin/'.$newQuckKey.$newQuickKeyHash.'/')){ $newQuckKey = rand(10000000, 99999999); $newQuickKeyHash =  substr(crc32($newQuckKey), 1, 2);}
+        
+        mkdir($datarootpath."/quicklogin/".$newQuckKey.$newQuickKeyHash, 0777, true);
+        file_put_contents($datarootpath."/quicklogin/".$newQuckKey.$newQuickKeyHash.'/config.php', '<?php $quickKeyUser="";   $quickKeyCreationTime='.round(microtime(true)).'     ?>');
+        setcookie('ECAD_PHP_fileviewer_quickkey',$newQuckKey.$newQuickKeyHash);
 
-        return substr($newQuckKey, 0, 4).' '.substr($newQuckKey, 4);
+        return substr($newQuckKey, 0, 4).' '.substr($newQuckKey, 4).' '.$newQuickKeyHash;
 
     }
     
@@ -2388,7 +2413,7 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
             }
 
             //check if key has timed out
-            if($quickKeyCreationTime+40 < round(microtime(true))){
+            if($quickKeyCreationTime+60 < round(microtime(true))){
                 
 
                 //remove key from server
@@ -2402,8 +2427,12 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
                 if($quickKeyUser !=''){
                     //login key accepted
                     echo 'login via quick login....</br>';
-                    //remove key
+                    
+                    //remove key on client
+                    setcookie('ECAD_PHP_fileviewer_quickkey','',-1);
+                    //remove key on server
                     rrmdir($datarootpath.'/quicklogin/'.$quickKey);
+
                     
                     //logging in user
                     handelLoginAccepted($datarootpath, $quickKeyUser, 'npw', $secret_word, 'quickLogin');
@@ -2420,6 +2449,12 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
 
         return false;
     }
+function removeQuickLoginKeyFromServer($quickKey){
+    global $datarootpath;
+    if(file_exists($datarootpath.'/quicklogin/'.$quickKey.'/config.php')){
+        rrmdir($datarootpath.'/quicklogin/'.$quickKey);
+    }
+}
 
 
     //user input for quick login
@@ -2436,21 +2471,123 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
 
                 return 'invalid quick key';
             }
- 
+
             file_put_contents($datarootpath.'/quicklogin/'.$quickKey.'/config.php', '<?php $quickKeyUser="'.$username.'";   $quickKeyCreationTime='.$quickKeyCreationTime.'     ?>');
-            return 'login accepted <span style="padding-left:20px"></span> please press the login button on the other device to complete the login';
+            return 'login accepted <span style="padding-left:20px"></span> (you may have to press the refresh button to complete the login)';
         }
 
         return 'please enter a valid key';
 
+    }
+
+//only check if key was accepted
+function quickKeyCheckForLogin($quickKey){
+    global $datarootpath;
+    $quickKey = preg_replace('/[^0-9]/i', '', $quickKey);
+
+        //check if key exists on client and if it is still working
+        
+        if(file_exists($datarootpath.'/quicklogin/'.$quickKey.'/config.php')){
+            include $datarootpath.'/quicklogin/'.$quickKey.'/config.php';
+            if($quickKeyUser !=''){
+                return 'true';
+            }
+
+        }
+            
+            return 'false';
+    
+}
+    
+//
+function printQuickLoginWindow(){
+    {
+        $quickkeytmp = getCurrentQuickLoginKey();
+        if (isset($_GET['quick'])) $redirectPath = "?quick";
+        echo '<div style="text-align:center; margin= 0 auto;"><form method="POST" action="index.php'.$redirectPath.'">Quick login key: <div id="quickKey" style="display: inline">'.$quickkeytmp.'</div> <input  type="submit" name="refresh" value="refresh"></input> <div id="quickKeyTimeout" style="display: inline">55s</div></form></div>';
+        
+        //Autorefresh
+        //TODO
+        ?>
+        <script language="JavaScript">
+        var quickKeyTimeoutCounter = 54;
+        var refreshCount = 1;
+        var refreshactive = true;
+        var currentQuickKey = "<?php echo $quickkeytmp; ?>";
+        function checkForQuickLoginConfirm(){
+            if(quickKeyTimeoutCounter < 2){
+                if(refreshactive){
+                    refreshactive = false;
+                    quickKeyTimeoutCounter = 0;
+                    document.getElementById("quickKeyTimeout").innerHTML = quickKeyTimeoutCounter+"s";
+                    console.log("key has timed out. getting new one");
+                    
+                    //dont show key anymore
+                    document.getElementById("quickKey").innerHTML = "0000 0000 00";
+                    
+                    //get new key    generateNewQuickKey
+                    
+                    var client = new XMLHttpRequest();
+                    client.open('GET', '?gnqk');
+                    
+                    client.onreadystatechange = function() {
+                        var currentStatus = client.status;
+                        var curretnResponse = client.responseText;
+                        if (currentStatus == "200" && curretnResponse != ""){
+                            console.log("recived new key");
+                            currentQuickKey = client.responseText;
+                            
+                            document.getElementById("quickKey").innerHTML = currentQuickKey;
+                            quickKeyTimeoutCounter = 55;
+                            document.getElementById("quickKeyTimeout").innerHTML = quickKeyTimeoutCounter+"s";
+                            refreshactive = true;
+                        }else{
+                            console.log("status not 200 or empty answer. status: "+currentStatus +" Answer: "+curretnResponse);
+                        }
+                    }
+                    client.send();
+                }
+
+            }else if(refreshactive){
+                quickKeyTimeoutCounter--;
+                document.getElementById("quickKeyTimeout").innerHTML = quickKeyTimeoutCounter+"s";
+                if(refreshCount >2){
+                    
+                    var client = new XMLHttpRequest();
+                    client.open('GET', '?cfqlc');
+                    
+                    client.withCredentials = false;
+                    
+                    client.onreadystatechange = function() {
+                        var response = client.responseText;
+                        console.log("response: "+response);
+                        if(client.status == "200" && response == "true"){
+                            console.log("refrshing page");
+                            window.location.href = window.location.href;
+                            
+                        }
+                    }
+                    client.send();
+                    
+                    refreshCount = 0;
+                }
+                refreshCount++;
+            }
+            
+            
+        }
+        var quickloginfreshner=setInterval(checkForQuickLoginConfirm,1000);
+        
+        </script>
+        
+        <?php
         
         
     }
-    
-    
+}
 
 
 
     
-    
+echo microtime(true) - $TimeTestTimeStart;
 ?>
