@@ -4,8 +4,8 @@
     //change in the folowing only in the config.php file by copying them there and changing the values, or else you lose your configuration when you update!!!
     
     $debug = false;
-    $ecad_php_version ="ECAD PHP file hub v0.2.04n_c";
-    $ecad_php_version_number = "v0.2.04n_c";
+    $ecad_php_version ="ECAD PHP file hub v0.2.04n_d";
+    $ecad_php_version_number = "v0.2.04n_d";
     $ecad_php_version_id = 135;
     
     //install if not installed
@@ -957,7 +957,7 @@ function edit_user($datarootpath, $username, $new_password, $new_can_change_pass
     '$can_use_short_share='.$new_can_use_short_share.";\r\n".
     '$can_create_public_shares='.$new_can_create_public_shares.";\r\n".
     '$can_use_quick_login='.$new_can_use_quick_login.";\r\n".
-    '$notify_user_for_update='.$notify_user_for_update.";\r\n".
+    '$notify_user_for_update='."'".$notify_user_for_update."'".";\r\n".
     '$can_login='."true".";\r\n".
     '?>';
     fwrite($ecad_php_user_config_file, $user_config_file_Standard);

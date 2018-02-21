@@ -38,6 +38,7 @@ New password save system (old users from version 0.2.03 can no longer login. cop
 All changes:
 0.2.04n
 new session handling system
+added ability for users to see ther active sessions and close them
 added quick login system
 added auto update notification and easy update installer
 added ability to view pictures and pdfs in browser without needing to download
