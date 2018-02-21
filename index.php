@@ -1,12 +1,12 @@
 <?php
-    $TimeTestTimeStart = microtime(true);;
+
 
     //change in the folowing only in the config.php file by copying them there and changing the values, or else you lose your configuration when you update!!!
     
     $debug = false;
-    $ecad_php_version ="ECAD PHP file hub v0.2.04k";
-    $ecad_php_version_number = "v0.2.04k";
-    $ecad_php_version_id = 132;
+    $ecad_php_version ="ECAD PHP file hub v0.2.04n";
+    $ecad_php_version_number = "v0.2.04n";
+    $ecad_php_version_id = 135;
     
     //install if not installed
     installifneeded($ecad_php_version_number,$ecad_php_version_id);
@@ -48,6 +48,7 @@
         ecad_php_log($datarootpath,"INFO","update parameters have been executed ");
         unlink('update_parameters.php');
     }
+
     
 
     
@@ -125,6 +126,11 @@
 if ($authentificated) {
     if($user == "admin"){
         $userIsAdmin = true;
+        //update script
+        if(file_exists('update.php')){
+            include 'update.php';
+            ecad_php_log($datarootpath,"INFO","update script hase been executed ");
+        }
     }
     if($userIsAdmin){//administrator is logged in
         
@@ -138,6 +144,9 @@ if ($authentificated) {
         }
         //prints administrator interface header
         if($show_user_interface && $_GET["path"] == ""){
+            //check for updates
+            echo makeCheckForUpdateNotification();
+            
             printsAdministratorInterfaceHeader($ecad_php_version, $user);
         }
         //administrative functions getter---------------------------------
@@ -179,6 +188,7 @@ if ($authentificated) {
         }
         //interface for administrators
         if($show_user_interface){
+            
             if ($_GET["path"] == "" or $_GET["path"] == ""){
                 //user list interface for administrator
                 showUserListPannel($datarootpath, $canAccessSystemFolder);
@@ -443,8 +453,36 @@ if ($authentificated) {
             }
             //download file if path is a file
             if(is_file($fullpath)){
+                
+                
                 ecad_php_log($datarootpath,"INFO","file download ".'['.$path.']');
-                makeDownload($fullpath, $path);
+                //check if editing
+                if(isset($_GET["view"])){
+                    $ext = pathinfo($fullpath, PATHINFO_EXTENSION);
+                    switch($ext)
+                    {
+                        case "bmp":
+                        case "jpg":
+                        case "gif":
+                        case "png":
+                        case "svg":
+                        case "jpeg":
+                        case "pdf": makeDownload($fullpath, $path, true); break;
+                            
+                        case "txt": echo "can't view file an the moment (not implemented)"; break;
+                            
+                            //for all other files make normal download
+                        default: makeDownload($fullpath, $path, false); break;
+                    }
+                }else{
+                    makeDownload($fullpath, $path, false);
+                }
+                
+                
+
+                
+                
+                
             }else{
                 //normal user -----------------------------------------
                 $show_user_interface = true;
@@ -643,13 +681,13 @@ function curPageURL() {
     return $pageURL;
 }
 
-function makeDownloadHead($file, $type, $filename) {
+function makeDownloadHead($file, $type, $filename,$isAviewableFile) {
     
     
-    header("Content-Type: $type");
+    header("Content-Type: ".$type);
     
     //header("Content-Disposition: attachment; filename=\"$file\"");
-    header("Content-Disposition: attachment; filename=\"$filename\"");
+    if(!$isAviewableFile) header("Content-Disposition: attachment; filename=\"$filename\"");
     //Give client the file size
     header("Content-length: ".filesize($file));
 
@@ -663,23 +701,29 @@ function installifneeded($ecad_php_version_number,$ecad_php_version_id) {
         $ecadphpconfigfile = fopen("config.php", "w");
         $ecadphpconfigStandard = '<?php'."\r\n".
         '$datarootpath='."'".__DIR__.$dataFolderName."'".';'."\r\n".
-        '$firstInstallationVersion='."'".$ecad_php_version_number."'".';'.
+        '$firstInstallationVersion='."'".$ecad_php_version_number."'".';'."\r\n".
         '$firstInstallationID='."'".$ecad_php_version_id."'".';'."\r\n".
         '$log_fileUpload=true;'."\r\n".
         '$allowAllCharactersInObjectNames=false;'."\r\n".
-        
         '$show_password_reset_button=false;'."\r\n".
         '$allow_password_reset_functionality=false;'."\r\n".
         '$allow_public_shares=false;'."\r\n".
-        '$automatically_check_for_updates=false;'." //automatic updates may be added in the future \r\n".
-        '$update_notification=false;'."\r\n".
+        
+        '$automatically_check_for_updates=true;'."\r\n".
+        '$update_notification=true;'."\r\n".
         '$auto_update=false;'."\r\n".
+        
+        '$lastUpdateCheck='."'0'".';'."\r\n".
+        '$UpdateRecheckTimer='."'86400'".';'."\r\n".
+        '$updateAvailable=false;'."\r\n".
+        
         '$allow_quick_login=false;'."\r\n".
         '$show_quick_login=false;'."\r\n".
-        '$quick_login_timeout='."'2000'".';'."\r\n".
+        '$quick_login_timeout='."'60'".';'."\r\n".
         '$set_system_timeout_overwrite=false;'."\r\n".
         '$set_password_requirements='."'".'^\S*(?=\S{8,})(?=\S*[a-z])(?=\S*[A-Z])(?=\S*[\d])\S*$'."'".';'." //requirements length:8 , minimum of at least 1 upper case, lower case and a number \r\n".
         '?>';
+
 
 
 fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
@@ -694,11 +738,11 @@ mkdir('.'.$dataFolderName.'/quicklogin', 0777, true);
 
 
 //create user0
-create_user("user0",'.'.$dataFolderName.'/');
+//create_user("user0",'.'.$dataFolderName.'/');
 //configure user
-edit_user('.'.$dataFolderName, "user0", "admin", "false", "", "false", "false", "", "false", "false", "0","false","false","false");
+//edit_user('.'.$dataFolderName, "user0", "admin", "false", "", "false", "false", "", "false", "false", "0","false","false","false");
 //create user0 test folder
-mkdir('.'.$dataFolderName.'/users/user0/data/test', 0777, true);
+//mkdir('.'.$dataFolderName.'/users/user0/data/test', 0777, true);
 
 
 //create admin
@@ -723,6 +767,122 @@ ecad_php_log(__DIR__.''.$dataFolderName.'',"INFO","ECAD PHP fileviewer successfu
     }
 
 }
+function makeCheckForUpdateNotification(){
+    global $automatically_check_for_updates;
+    
+    
+    if($automatically_check_for_updates){
+        global $update_notification, $lastUpdateCheck, $UpdateRecheckTimer, $updateAvailable, $ecad_php_version_number,$ecad_php_version_id;
+        //https://github.com/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/download/v0.2.03g/ECAD.PHP.File.HUB.Version.0.2.03g.zip
+        //https://github.com/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/tag/v0.2.03g
+        if(($lastUpdateCheck+$UpdateRecheckTimer)<time()){
+            
+
+            
+            //test
+            //$currentVersionFromGithub = file_get_contents('current_version.txt');
+            
+            
+            //download current version file
+            //https://raw.githubusercontent.com/epic-crap-app-designer/ECAD-PHP-File-Hub/master/current_version.txt
+            
+            $currentVersionFromGithub = file_get_contents('https://raw.githubusercontent.com/epic-crap-app-designer/ECAD-PHP-File-Hub/master/current_version.txt');
+            
+
+            
+            if($currentVersionFromGithub === FALSE) return "Update Notification:</br>can't check for updates! (couldn't connect to github.com)</br></br>";
+            
+            $currentVersionFromGithubParts = explode(";", $currentVersionFromGithub);
+            //check update file version compatibelty
+            if($currentVersionFromGithubParts[0] == 1){
+                if($currentVersionFromGithubParts[1] >$ecad_php_version_id){
+                    //update is available
+                    $updateAvailable = true;
+                    $update_notification = $currentVersionFromGithub;
+                }else{$updateAvailable = false;}
+                
+                //set config.php
+                
+                $lastUpdateCheck = time();
+                updateConfigPHPFile();
+            }else{
+                //update file incompatible
+                return 'Update Notification:</br>there may be an update, but the update system is not compatible, please download the newest update manualy</br></br>';
+            }
+
+        }
+        if($updateAvailable){
+            //recheck if update has been installed already
+            $currentVersionFromGithubParts = explode(";", $update_notification);
+            if($currentVersionFromGithubParts[1] <=$ecad_php_version_id){
+                //update is available
+                $updateAvailable = false;
+                $update_notification = '';
+                updateConfigPHPFile();
+            }else{
+                global $userIsAdmin;
+                if($userIsAdmin && isset($_GET["autoupdatedownload"])){
+
+                   $updatePHPFile = file_get_contents('https://github.com/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/download/'.$currentVersionFromGithubParts[2].'/update.php');
+                   
+                   if($updatePHPFile === FALSE) return "There was an error, please try downloading the update manualy</br>";
+                   
+                   $updatePHPFileObject = fopen("update.php", "w");
+   
+                   
+                   fwrite($updatePHPFileObject, $updatePHPFile);
+                   fclose($updatePHPFileObject);
+                   
+                   
+                   header("Refresh:0; url=index.php?path=");
+                }else{
+                   
+                   return 'Update available!</br>current Version: <a style="color:blue">'.$ecad_php_version_number.'</a> new version: <a style="color:blue">'.$currentVersionFromGithubParts[2].'</a></br>Try <a href="index.php?autoupdatedownload">autoupdate</a> (you will have to login as administrator)</br>or download the newest version manualy <a href="https://github.com/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/tag/'.$currentVersionFromGithubParts[2].'">here</a></br></br>';
+                }
+            }
+
+
+        }
+    }
+}
+
+
+
+function updateConfigPHPFile(){
+    ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","updating config.php");
+    global $datarootpath,$firstInstallationVersion,$firstInstallationID,$log_fileUpload,$allowAllCharactersInObjectNames,$show_password_reset_button,$allow_password_reset_functionality,$allow_public_shares,$automatically_check_for_updates,$update_notification,$lastUpdateCheck,$UpdateRecheckTimer,$show_quick_login,$allow_quick_login,$quick_login_timeout,$set_system_timeout_overwrite,$set_password_requirements,$updateAvailable;
+    
+    $ecadphpconfigfile = fopen("config.php", "w");
+    $ecadphpconfigStandard = '<?php'."\r\n".
+    '$datarootpath='."'".$datarootpath."'".';'."\r\n".
+    '$firstInstallationVersion='."'".$firstInstallationVersion."'".';'."\r\n".
+    '$firstInstallationID='."'".$firstInstallationID."'".';'."\r\n".
+    '$log_fileUpload='."'".$log_fileUpload."';\r\n".
+    '$allowAllCharactersInObjectNames='."'".$allowAllCharactersInObjectNames."';\r\n".
+    '$show_password_reset_button='."'".$show_password_reset_button."';\r\n".
+    '$allow_password_reset_functionality='."'".$allow_password_reset_functionality."';\r\n".
+    '$allow_public_shares='."'".$allow_public_shares."';\r\n".
+    
+    '$automatically_check_for_updates='."'".$automatically_check_for_updates."';\r\n".
+    '$update_notification='."'".$update_notification."';\r\n".
+    '$auto_update='."'".$auto_update."';\r\n".
+    
+    '$UpdateRecheckTimer='."'".$UpdateRecheckTimer."';\r\n".
+    '$lastUpdateCheck='."'".$lastUpdateCheck."';\r\n".
+    '$updateAvailable='."'".$updateAvailable."';\r\n".
+    
+    '$allow_quick_login='."'".$allow_quick_login."';\r\n".
+    '$show_quick_login='."'".$show_quick_login."';\r\n".
+    '$quick_login_timeout='."'".$quick_login_timeout."';\r\n".
+    '$set_system_timeout_overwrite='."'".$set_system_timeout_overwrite."';\r\n".
+    '$set_password_requirements='."'".$set_password_requirements."';\r\n //requirements length:8 , minimum of at least 1 upper case, lower case and a number \r\n".
+    '?>';
+    
+    
+    fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
+    fclose($ecadphpconfigfile);
+}
+
 ?><?php
     //User Administration -----------------------------------------------------------------------------
     function create_user($user,$ECAD_PHP_fileviewer_X_data_folder){
@@ -750,11 +910,8 @@ ecad_php_log(__DIR__.''.$dataFolderName.'',"INFO","ECAD PHP fileviewer successfu
 
 
 
-    //add share fav list
-    $file = fopen($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/shares/favorites.php', "w");
-    $fileText = '<?php ?>';
-    fwrite($file, $fileText);
-    fclose($file);
+        //add share fav list
+        mkdir($ECAD_PHP_fileviewer_X_data_folder.'/users/'.$toCreateUsername.'/favorite_shares');
 
     }
 
@@ -796,12 +953,17 @@ function edit_user($datarootpath, $username, $new_password, $new_can_change_pass
     '$can_use_short_share='.$new_can_use_short_share.";\r\n".
     '$can_create_public_shares='.$new_can_create_public_shares.";\r\n".
     '$can_use_quick_login='.$new_can_use_quick_login.";\r\n".
+    '$notify_user_for_update='.$notify_user_for_update.";\r\n".
     '$can_login='."true".";\r\n".
     '?>';
     fwrite($ecad_php_user_config_file, $user_config_file_Standard);
     fclose($ecad_php_user_config_file);
 
     
+    
+}
+function editConfigPHP(){
+    //TODO
     
 }
 ?><?php
@@ -953,17 +1115,20 @@ function showUploadFunction(){
             }else{
                 echo round((filesize($fullpath.'/'.$file)/1000.000),3)."kb   ";
             }
+            return 1;
         }
         else
         {
             echo ("Folder   ");
+            return 0;
         }
     }
     function printFileEditUploadDeleteCreateButtons($can_delete, $can_upload){
         echo "\r\n".'<form method="POST" action="" enctype="multipart/form-data">';
         echo '<input name="download_multiple" value="download" type="submit">';
         if($can_delete){ echo ' <input name="rename_FolderOrFile" value="rename" type="submit"> <input name="delete_FolderOrFile" value="delete" type="submit"> <input name="create_Folder" value="new folder" type="submit">';}
-        if($can_upload){ echo ' <button type="button" onclick="showUploadFunction()">upload</button>';}
+        if($can_upload){ echo ' <button type="button" onclick="showUploadFunction()">upload</button> <input name="create_TXT_File" value="new .txt file" type="submit">';}
+
     }
     function printFileAndInfo($file , $nichtgelisteteDatein, $path, $can_delete, $fullpath){
         if (in_array ( $file , $nichtgelisteteDatein )){
@@ -977,12 +1142,49 @@ function showUploadFunction(){
             echo '<input type="checkbox" name="file_'.$file_in_html.'" value="true" class="id_file_checkbox"></input> ';
             
             //writes the filesize of the given file in human readeble form
-            printFileSize($fullpath, $file);
+            $isitaFile = printFileSize($fullpath, $file);
             
             //path system for shown files and folders
             $newpath = substr(curPageURL(), 0, strpos(curPageURL(),basename(__FILE__))).basename(__FILE__)."?path=".$path;
             
-            echo '<a href="'.$newpath.$file.'">'.$file."       ".'</a> </br>';
+            echo '<a href="'.$newpath.$file.'">'.$file."       ".'</a><span style="padding-left:20px"></span>';
+            
+            
+            
+            //make edit and view
+            
+            if($isitaFile == 1){
+                $ext = pathinfo($file, PATHINFO_EXTENSION);
+                switch($ext)
+                {
+                    case "bmp":
+                    case "jpg":
+                    case "gif":
+                    case "png":
+                    case "svg":
+                    case "jpeg":
+                    case "pdf": echo'<a href="'.$newpath.$file.'&view"> view</a>'; break;
+                        
+                    //case "txt": echo'<a href="'.$newpath.$file.'&view"> edit</a>'; break;
+                        
+                        //case "jpg": echo'<a href="'.$newpath.$file.'&view"> edit</a>'; break;
+                        
+                        
+
+                        
+                    case "": // Handle file extension for files ending in '.'
+                    case NULL: // Handle no file extension
+                        break;
+                }
+            }
+            
+            
+            
+            
+            echo '</br>';
+            
+            
+            
         }
         return 1;
     }
@@ -1308,7 +1510,7 @@ function showUploadFunction(){
         }while(!$new_folder_created);
         echo 'Created new Folder!<br/>';
     }
-    function makeDownload($fullpath, $path){
+    function makeDownload($fullpath, $path, $isAviewableFile){
         //do download
         
         
@@ -1316,7 +1518,7 @@ function showUploadFunction(){
         
         substr($path, strrpos($path, '/') + 1);
         
-        makeDownloadHead($fullpath, filetype($fullpath),$filename);
+        makeDownloadHead($fullpath, filetype($fullpath),$filename, $isAviewableFile);
         
         //clean the file reader
         ob_end_clean();
@@ -2588,6 +2790,5 @@ function printQuickLoginWindow(){
 
 
 
-    
-echo microtime(true) - $TimeTestTimeStart;
+
 ?>

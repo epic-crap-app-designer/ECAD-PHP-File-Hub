@@ -1,4 +1,4 @@
-﻿ECAD PHP fileviewer v0.2.04xx Handbook
+﻿ECAD PHP fileviewer v0.2.04n Handbook
 
 
 
@@ -36,12 +36,15 @@ New password save system (old users from version 0.2.03 can no longer login. cop
 
 
 All changes:
-0.2.04xx
+0.2.04n
 new session handling system
-quick login system
+added quick login system
+added auto update notification and easy update installer
+added ability to view pictures and pdfs in browser without needing to download
+
 
 New password save system
-Added new user settings options in administrator Interface
+Added new user settings options in administrator Interface (not all functions are implemented)
 
 0.2.03g
 added the option to allow all characters in a file name (may cause some problems with older operating systems and older versions of php or apache)

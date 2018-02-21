@@ -8,8 +8,10 @@ TODO_NEXT:
 		change password
 		change email
 
+
 	default user (the default user will be copied if a new user is created)
-	better upload system (to allow for even bigger files, that take longer as the execution time of php (30 seconds))
+	better upload system (ECAD BLOB UP)(to allow for even bigger files, that take longer as the execution time of php (30 seconds))
+	better download system for zips (ECAD BLOB ZIP)(to allow for even bigger files, that take longer as the execution time of php (30 seconds))
 	auto update
 
 
