@@ -4,8 +4,8 @@
     //change in the folowing only in the config.php file by copying them there and changing the values, or else you lose your configuration when you update!!!
     
     $debug = false;
-    $ecad_php_version ="ECAD PHP file hub v0.2.04n_b";
-    $ecad_php_version_number = "v0.2.04n_b";
+    $ecad_php_version ="ECAD PHP file hub v0.2.04n_c";
+    $ecad_php_version_number = "v0.2.04n_c";
     $ecad_php_version_id = 135;
     
     //install if not installed
@@ -918,7 +918,8 @@ function updateConfigPHPFile(){
 function edit_user($datarootpath, $username, $new_password, $new_can_change_password, $new_email, $new_can_reset_password, $new_can_change_email, $new_re_routed_user_path, $new_can_upload, $new_can_delete, $new_amountOfAllowedShares,$new_can_use_short_share,$new_can_create_public_shares,$new_can_use_quick_login){
     
     
-    $notify_user_for_update=false;
+    $notify_user_for_update='false';
+
     
     ecad_php_log($datarootpath,"INFO","user edited ".'['.$username.']');
     //set vaues for if they arent set in userconfig.php
