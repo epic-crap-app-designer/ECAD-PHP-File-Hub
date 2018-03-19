@@ -1,12 +1,13 @@
 <?php
 
 
-    //change in the folowing only in the config.php file by copying them there and changing the values, or else you lose your configuration when you update!!!
+    
     
     $debug = false;
-    $ecad_php_version ="ECAD PHP file hub v0.2.04n_d";
-    $ecad_php_version_number = "v0.2.04n_d";
-    $ecad_php_version_id = 135;
+    $ecad_php_version ="ECAD PHP file hub v0.2.04p";
+    $ecad_php_version_number = "v0.2.04p";
+    $ecad_php_version_release_number = "v0.2.04p";
+    $ecad_php_version_id = 136;
     
     //install if not installed
     installifneeded($ecad_php_version_number,$ecad_php_version_id);
@@ -37,6 +38,8 @@
         echo "!ERROR! The upload exceeded the maximum upload size of the system! (maximum: ".ini_get("post_max_size").")</br>";
     }
 
+    //include runtime settings
+    include "runtimeSettings.php";
     //load config
     include "config.php";
     
@@ -130,6 +133,9 @@ if ($authentificated) {
         if(file_exists('update.php')){
             include 'update.php';
             ecad_php_log($datarootpath,"INFO","update script hase been executed ");
+            
+            //don't show update notification
+            $updateAvailable = false;
         }
     }
     if($userIsAdmin){//administrator is logged in
@@ -189,14 +195,19 @@ if ($authentificated) {
         //interface for administrators
         if($show_user_interface){
             
-            if ($_GET["path"] == "" or $_GET["path"] == ""){
+            if (isset( $_GET['systemsettings']) ){
+                //show system settings
+                showSystemSettingsPannel();
+                
+            }elseif($_GET["path"] == "" or $_GET["path"] == ""){
                 //user list interface for administrator
                 showUserListPannel($datarootpath, $canAccessSystemFolder);
             }else{
                  //file viewer interface for administrator
                 $path = $_GET["path"];
                 $showFileViewer = true;
-                echo '<a href="index.php?path="><--  back to user administration </a></br>';
+                //TODO
+                //echo '<a href="index.php?path="><--  back to user administration </a></br>';
             }
         }
     }
@@ -694,6 +705,19 @@ function makeDownloadHead($file, $type, $filename,$isAviewableFile) {
 }
 ?><?php
 function installifneeded($ecad_php_version_number,$ecad_php_version_id) {
+    
+    if(!file_exists("runtimeSettings.php")){
+        //runtime settings are used to store some values that change over time (dont make any changes to this file, as it is rewritten frequently)
+        $ecadphpconfigfile = fopen("runtimeSettings.php", "w");
+        $ecadphpconfigStandard = '<?php'."\r\n".
+        '$lastUpdateCheck='."'0'".';'."\r\n".
+        '$updateAvailable=false;'."\r\n".
+        '$update_notification='."'';\r\n".
+        '?>';
+fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
+fclose($ecadphpconfigfile);
+}
+    
         //$secret_word = "word";
     if(!file_exists("config.php")){
         $dataFolderName = '/ECAD PHP file hub data';
@@ -710,12 +734,11 @@ function installifneeded($ecad_php_version_number,$ecad_php_version_id) {
         '$allow_public_shares=false;'."\r\n".
         
         '$automatically_check_for_updates=true;'."\r\n".
-        '$update_notification=true;'."\r\n".
         '$auto_update=false;'."\r\n".
         
-        '$lastUpdateCheck='."'0'".';'."\r\n".
+
         '$UpdateRecheckTimer='."'86400'".';'."\r\n".
-        '$updateAvailable=false;'."\r\n".
+
         
         '$allow_quick_login=false;'."\r\n".
         '$show_quick_login=false;'."\r\n".
@@ -728,6 +751,10 @@ function installifneeded($ecad_php_version_number,$ecad_php_version_id) {
 
 fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
 fclose($ecadphpconfigfile);
+
+
+
+
 //ecad php data folder
 mkdir('.'.$dataFolderName.'/shares', 0777, true);
 mkdir('.'.$dataFolderName.'/pages', 0777, true);
@@ -767,89 +794,215 @@ ecad_php_log(__DIR__.''.$dataFolderName.'',"INFO","ECAD PHP fileviewer successfu
     }
 
 }
+function getWebResourceOrDie($url){
+    $handle = curl_init($url);
+    curl_setopt($handle,  CURLOPT_RETURNTRANSFER, TRUE);
+    
+    
+    
+    curl_setopt($handle, CURLOPT_HTTPHEADER, [
+                'User-Agent: ECAD-PHP-File-Hub'
+                ]);
+    
+    
+    
+    
+    /* Get the HTML or whatever is linked in $url. */
+    $response = curl_exec($handle);
+
+    
+    /* Check for 404 (file not found). */
+    $httpCode = curl_getinfo($handle, CURLINFO_HTTP_CODE);
+    if($httpCode == 200) {
+        //file was loaded sucessfully
+
+        
+        return $response;
+    }else{
+        //cant load file
+        curl_close($handle);
+        return -1;
+    }
+    curl_close($handle);
+    return $response;
+    
+    
+}
 function makeCheckForUpdateNotification(){
-    global $automatically_check_for_updates;
     
+   
     
+    //TODO (2.0)
+    
+    global $automatically_check_for_updates, $ecad_php_version_release_number;
     if($automatically_check_for_updates){
-        global $update_notification, $lastUpdateCheck, $UpdateRecheckTimer, $updateAvailable, $ecad_php_version_number,$ecad_php_version_id;
-        //https://github.com/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/download/v0.2.03g/ECAD.PHP.File.HUB.Version.0.2.03g.zip
-        //https://github.com/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/tag/v0.2.03g
+        global $update_notification, $lastUpdateCheck, $UpdateRecheckTimer, $updateAvailable, $ecad_php_version_number,$ecad_php_version_id,$datarootpath;
+        
+        //debuging
+        //$lastUpdateCheck = 0;
+        
+
+        //check if update check must be made
         if(($lastUpdateCheck+$UpdateRecheckTimer)<time()){
             
+            $currentResource = getWebResourceOrDie('https://api.github.com/repos/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/latest');
+            
+            if($currentResource == '-1'){
+                //connection error
+                ecad_php_log($datarootpath,"WARNING","Checking for Updates: couldn't connect to github.com");
+                return "Update Notification:</br>can't check for updates! (couldn't connect to github.com)</br></br>";
+
+            }
+            //get json from text
+            $currentResourceObj = json_decode($currentResource, true);
+
 
             
-            //test
-            //$currentVersionFromGithub = file_get_contents('current_version.txt');
-            
-            
-            //download current version file
-            //https://raw.githubusercontent.com/epic-crap-app-designer/ECAD-PHP-File-Hub/master/current_version.txt
-            
-            $currentVersionFromGithub = file_get_contents('https://raw.githubusercontent.com/epic-crap-app-designer/ECAD-PHP-File-Hub/master/current_version.txt');
-            
-
-            
-            if($currentVersionFromGithub === FALSE) return "Update Notification:</br>can't check for updates! (couldn't connect to github.com)</br></br>";
-            
-            $currentVersionFromGithubParts = explode(";", $currentVersionFromGithub);
-            //check update file version compatibelty
-            if($currentVersionFromGithubParts[0] == 1){
-                if($currentVersionFromGithubParts[1] >$ecad_php_version_id){
+            if ($currentResourceObj['tag_name'] != $ecad_php_version_release_number ){
+                //different version available
+                //check if version is allowing auto update
+                noUpdateFlag = 'no update'
+                if(substr($currentResourceObj['body'], 0, strlen(noUpdateFlag)) === noUpdateFlag){
+                    //auto update has been disabled for this version!
+                    $updateAvailable = false;
+                    ecad_php_log($datarootpath,"WARNING","Checking for Updates: updates have been temporarely disabled (visit our github for more information)");
+                    
+                }eelse{
                     //update is available
                     $updateAvailable = true;
-                    $update_notification = $currentVersionFromGithub;
-                }else{$updateAvailable = false;}
-                
-                //set config.php
-                
-                $lastUpdateCheck = time();
-                updateConfigPHPFile();
-            }else{
-                //update file incompatible
-                return 'Update Notification:</br>there may be an update, but the update system is not compatible, please download the newest update manualy</br></br>';
-            }
-
-        }
-        if($updateAvailable){
-            //recheck if update has been installed already
-            $currentVersionFromGithubParts = explode(";", $update_notification);
-            if($currentVersionFromGithubParts[1] <=$ecad_php_version_id){
-                //update is available
-                $updateAvailable = false;
-                $update_notification = '';
-                updateConfigPHPFile();
-            }else{
-                global $userIsAdmin;
-                if($userIsAdmin && isset($_GET["autoupdatedownload"])){
-
-                   $updatePHPFile = file_get_contents('https://github.com/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/download/'.$currentVersionFromGithubParts[2].'/update.php');
-                   
-                   if($updatePHPFile === FALSE) return "There was an error, please try downloading the update manualy</br>";
-                   
-                   $updatePHPFileObject = fopen("update.php", "w");
-   
-                   
-                   fwrite($updatePHPFileObject, $updatePHPFile);
-                   fclose($updatePHPFileObject);
-                   
-                   
-                   header("Refresh:0; url=index.php?path=");
-                }else{
-                   
-                   return 'Update available!</br>current Version: <a style="color:blue">'.$ecad_php_version_number.'</a> new version: <a style="color:blue">'.$currentVersionFromGithubParts[2].'</a></br>Try <a href="index.php?autoupdatedownload">autoupdate</a> (you will have to login as administrator)</br>or download the newest version manualy <a href="https://github.com/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/tag/'.$currentVersionFromGithubParts[2].'">here</a></br></br>';
+                    $update_notification = '2;000;'.$currentResourceObj['tag_name'].';some text';
+                    ecad_php_log($datarootpath,"INFO","Checking for Updates: update found!");
                 }
+
+            }else{
+                //no update available
+                $updateAvailable = false;
+                ecad_php_log($datarootpath,"INFO","Checking for Updates: no updates found");
             }
 
-
+        
+        $lastUpdateCheck = time();
+        updateRuntimeSettings();
+        
+        
+            //load latest release json from github https://api.github.com/repos/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/latest
+            
+            //check if version number is different (tag_name)
+                //set update notification
+                //1;135;v0.2.04n;some text
+                //nu;nu;newest version;text when update fails
+                //set update available
+                //save new parameters
         }
+        
+        //when update is available (local value)
+        if($updateAvailable){
+            //load parameters
+            $currentVersionFromGithubParts = explode(";", $update_notification);
+            global $userIsAdmin;
+            
+            if($userIsAdmin){
+                //user is admin
+                if(isset($_GET["autoupdatedownload"])){
+                    
+                    
+                    
+                    //make update
+                    
+                    
+                    $currentResource = getWebResourceOrDie('https://api.github.com/repos/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/latest');
+                    
+                    if($currentResource == '-1'){
+                        //connection error
+                        ecad_php_log($datarootpath,"WARNING","Update: connection ERROR");
+                        return "Update Notification:</br>Connection ERROR! (couldn't connect to github.com)</br></br>";
+                    }
+                    //get json from text
+                    $currentResourceObj = json_decode($currentResource, true);
+
+                    if ($currentResourceObj['tag_name'] != $ecad_php_version_release_number ){
+                        //different version available
+                        //update is available
+                        $updateAvailable = true;
+                        $update_notification = '2;000;'.$currentResourceObj['tag_name'].';some text';
+                        ecad_php_log($datarootpath,"INFO","Rechecking for update: update found!");
+                    }else{
+                        //no update available
+                        $updateAvailable = false;
+                        ecad_php_log($datarootpath,"WARNING","Rechecking for update: no update found!");
+                    }
+                    updateRuntimeSettings();
+                    
+                    
+                    
+                    //load
+                    $downloadPath = 'https://github.com/epic-crap-app-designer/ECAD-PHP-File-Hub/releases/download/'.$currentResourceObj['tag_name'].'/update.php';
+                    
+                    
+                    $updateResource = getWebResourceOrDie($downloadPath);
+
+                    if($updateResource == '-1'){
+                        //connection error
+                        ecad_php_log($datarootpath,"WARNING","Update: connection ERROR");
+                        return "Update Notification:</br>There was a problem, please update manually or retry later</br></br>";
+                    }
+                    
+                    
+                    $updatePHPFileObject = fopen("update.php", "w");
+                    
+                    
+                    fwrite($updatePHPFileObject, $updateResource);
+                    fclose($updatePHPFileObject);
+                    
+                    
+                    echo 'please wait....</br> the website may be refreshing a couple of times';
+                    header("Refresh:0; url=index.php?path=");
+                    
+                    
+                    
+                    
+                    
+
+                    
+                }else{
+                    //show update
+                    return 'A new Update is available!</br>current Version: <a style="color:blue">'.$ecad_php_version_release_number.'/'.$ecad_php_version_number.'</a> new version: <a style="color:blue">'.$currentVersionFromGithubParts[2].'</a></br>click <a href="index.php?autoupdatedownload">here</a> to download the update</br></br>';
+                    
+                }
+            }else{
+                //user is no admin
+                return 'A new Update is available!</br>current Version: <a style="color:blue">'.$ecad_php_version_release_number.'/'.$ecad_php_version_number.'</a> new version: <a style="color:blue">'.$currentVersionFromGithubParts[2].'</a></br>login as administrator to download the update</br></br>';
+            }
+            
+            
+            
+        }else{
+            return "";
+        }
+        
     }
+    
 }
 
 
+function updateRuntimeSettings(){
+    global $lastUpdateCheck, $update_notification, $updateAvailable;
+    $ecadphpconfigfile = fopen("runtimeSettings.php", "w");
+    $ecadphpconfigStandard = '<?php'."\r\n".
+    '$lastUpdateCheck='."'".$lastUpdateCheck."';\r\n".
+    '$update_notification='."'".$update_notification."';\r\n".
+    '$updateAvailable='."'".$updateAvailable."';\r\n".
+    '?>';
+    fwrite($ecadphpconfigfile, $ecadphpconfigStandard);
+    fclose($ecadphpconfigfile);
+    
+}
 
 function updateConfigPHPFile(){
-    ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"INFO","updating config.php");
+    //dead code (currently)
+    return "";
+    
+    ecad_php_log($ECAD_PHP_fileviewer_X_data_folder,"WARNING","updating config.php");
     global $datarootpath,$firstInstallationVersion,$firstInstallationID,$log_fileUpload,$allowAllCharactersInObjectNames,$show_password_reset_button,$allow_password_reset_functionality,$allow_public_shares,$automatically_check_for_updates,$update_notification,$lastUpdateCheck,$UpdateRecheckTimer,$show_quick_login,$allow_quick_login,$quick_login_timeout,$set_system_timeout_overwrite,$set_password_requirements,$updateAvailable;
     
     $ecadphpconfigfile = fopen("config.php", "w");
@@ -864,12 +1017,12 @@ function updateConfigPHPFile(){
     '$allow_public_shares='."'".$allow_public_shares."';\r\n".
     
     '$automatically_check_for_updates='."'".$automatically_check_for_updates."';\r\n".
-    '$update_notification='."'".$update_notification."';\r\n".
+    //'$update_notification='."'".$update_notification."';\r\n".
     '$auto_update='."'".$auto_update."';\r\n".
     
     '$UpdateRecheckTimer='."'".$UpdateRecheckTimer."';\r\n".
-    '$lastUpdateCheck='."'".$lastUpdateCheck."';\r\n".
-    '$updateAvailable='."'".$updateAvailable."';\r\n".
+    //'$lastUpdateCheck='."'".$lastUpdateCheck."';\r\n".
+    //'$updateAvailable='."'".$updateAvailable."';\r\n".
     
     '$allow_quick_login='."'".$allow_quick_login."';\r\n".
     '$show_quick_login='."'".$show_quick_login."';\r\n".
@@ -1151,7 +1304,7 @@ function showUploadFunction(){
             //path system for shown files and folders
             $newpath = substr(curPageURL(), 0, strpos(curPageURL(),basename(__FILE__))).basename(__FILE__)."?path=".$path;
             
-            echo '<a href="'.$newpath.$file.'">'.$file."       ".'</a><span style="padding-left:20px"></span>';
+            echo '<a href="'.$newpath.$file.'">'.$file.'</a><span style="padding-left:20px"></span>';
             
             
             
@@ -1681,7 +1834,7 @@ function removeLoginCockieFromServer($datarootpath, $c_username){
         echo '<body>';
         
         echo $ecad_php_version.'    <a href="index.php?action=logout"> logout </a></br>';
-        echo "user: ".$user." (you are adminnistrator)</br>";
+        echo "user: ".$user.' (you are adminnistrator)</br>';
     }
     
     
@@ -1714,6 +1867,19 @@ function removeLoginCockieFromServer($datarootpath, $c_username){
             echo '<span style="padding-left:80px"></span><a href="index.php?path=/"> root file browser </a>';
         }
         
+    }
+    function showSystemSettingsPannel(){
+        //global
+        //TODO
+        //$ecadphpconfigfile = fopen("config.php", "r");
+        error_reporting(0);
+        echo __DIR__;
+        echo getSafeString(file_get_contents(__DIR__."/config.php"));
+        echo file_get_contents(__DIR__."/config.php");
+        //fclose($ecadphpconfigfile);
+    }
+    function showSystemSettingsPanelSubmit(){
+        //TODO
     }
     function logout_user($datarootpath){
         if($_POST['user_to_delete'] != ""){
@@ -1842,7 +2008,7 @@ function downloadLogFile($datarootpath){
     
     $filename = "/ecadPHPLog.log";
     
-    makeDownloadHead($datarootpath.$filename, filetype($datarootpath.$filename),"ecadPHPLog.log");
+    makeDownloadHead($datarootpath.$filename, filetype($datarootpath.$filename),"ecadPHPLog.log",false);
     
     //clean the file reader
     ob_end_clean();
@@ -2436,7 +2602,7 @@ function countMyShares($datarootpath, $user){
 //user panel----------------------------------------------------------------------------------------------------------------------------------------------------
 function showUserPanel($datarootpath, $user, $ecad_php_version){
     echo $ecad_php_version." &nbsp&nbsp&nbsp    user: ".$user.' <span style="padding-left:30px"></span> <a href="index.php?action=logout">  logout </a></br>';
-    echo '</br><span style="padding-left:20px"></span><a href="index.php?path=" >my files</a></br>';
+    echo '</br><span style="padding-left:20px"></span><a href="index.php?path=/" >my files</a></br>';
     echo '</br><span style="padding-left:20px"></span><a href="index.php?share">shares</a></br>';
     echo '</br><span style="padding-left:20px"></span><a href="index.php?settings">settings</a></br>';
     
@@ -2452,8 +2618,7 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
         
         if(isset($_POST["quickLoginAction"])) echo '<span style="padding-left:20px"></span>'.logintoquicklogin($user,getSafeString($_POST["quickLoginCode"]));
         
-        
-        
+
         
         
         
@@ -2461,7 +2626,10 @@ function showUserPanel($datarootpath, $user, $ecad_php_version){
    
         
     }
-    //echo '</br><span style="padding-left:20px"></span><a href="index.php?administration">administration panel</a> (not implemented)</br>';
+
+    global $userIsAdmin;
+    if($userIsAdmin) echo '</br><span style="padding-left:20px"></span><a href="index.php">administration panel</a> (not implemented)</br>';
+
 }
 ?><?php
     //user settings ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2713,7 +2881,6 @@ function printQuickLoginWindow(){
         echo '<div style="text-align:center; margin= 0 auto;"><form method="POST" action="index.php'.$redirectPath.'">Quick login key: <div id="quickKey" style="display: inline">'.$quickkeytmp.'</div> <input  type="submit" name="refresh" value="refresh"></input> <div id="quickKeyTimeout" style="display: inline">55s</div></form></div>';
         
         //Autorefresh
-        //TODO
         ?>
         <script language="JavaScript">
         var quickKeyTimeoutCounter = 54;

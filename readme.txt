@@ -36,6 +36,9 @@ New password save system (old users from version 0.2.03 can no longer login. cop
 
 
 All changes:
+0.2.04p
+new auto update system
+
 0.2.04n
 new session handling system
 added ability for users to see ther active sessions and close them
